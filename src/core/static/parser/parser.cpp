@@ -12,7 +12,7 @@ namespace core::static_analysis::parser {
 Err ParseBinary(Target &target) {
     Err err{};
     logger::Debug("Running LIEF parser on target '%s'", target.name.c_str());
-    auto result = LIEF::Parser::parse(target.filename);
+    auto result = LIEF::PE::Parser::parse(target.filename);
     if (!result) {
         logger::Error("Parsing error");
         return Err::ParsingError;
@@ -20,27 +20,10 @@ Err ParseBinary(Target &target) {
 
     logger::Okay("Parsing done");
 
-    std::vector<std::string> libs = result->imported_libraries();
-    auto imports = result->imported_functions();
-    logger::Debug("Mapping %d imported symbols", imports.size());
-    for (const auto &func : imports) {
-        bool found = false;
-        for (const auto &lib : libs) {
-            HMODULE mod = LoadLibrary(lib.c_str());
-            if (!mod) {
-                logger::Warn("Failed to load %s. Skipping", lib.c_str());
-                continue;
-            }
-            FARPROC func_addr = GetProcAddress(mod, func.name().c_str());
-            FreeLibrary(mod);
-            if (func_addr) {
-                target.imports[lib].emplace_back(func, lib, result.get());
-                found = true;
-                break;
-            }
-        }
-        if (!found) {
-            logger::Warn("Symbol %s not found", func.name().c_str());
+    auto libs = result->imports();
+    for (const auto &lib : libs) {
+        for (const auto &entry : lib.entries()) {
+            target.imports[lib.name()].emplace_back(entry, lib.name(), result.get());
         }
     }
 

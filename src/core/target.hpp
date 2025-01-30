@@ -24,20 +24,20 @@ struct InterestingFunction {
 };
 
 struct Function {
-    LIEF::Function lief_info;
+    LIEF::PE::ImportEntry lief_info;
     std::string lib_name;
     InterestType interest_type{};
     std::string category{};
     bool is_interesting = false;
     std::vector<u64> xref;
 
-    Function(LIEF::Function lief_info, const std::string &lib_name, const LIEF::Binary *lief_bin);
+    Function(const LIEF::PE::ImportEntry &lief_info, const std::string &lib_name, const LIEF::PE::Binary *lief_bin);
 };
 
 struct Target {
     std::string filename;
     std::string name;
-    std::unique_ptr<LIEF::Binary> lief_info{};
+    std::unique_ptr<LIEF::PE::Binary> lief_info{};
     std::map<std::string, std::vector<Function>> imports;
 
     Target(const std::string &filename);

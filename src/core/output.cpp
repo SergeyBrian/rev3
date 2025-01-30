@@ -36,7 +36,7 @@ void PrintImports(const Target &target) {
             std::cout << "\t" << std::left << std::setw(max_name_length + 2)
                       << import.lief_info.name() << " 0x" << std::right
                       << std::setw(8) << std::setfill('0') << std::hex
-                      << import.lief_info.address() << std::dec
+                      << import.lief_info.hint_name_rva() << std::dec
                       << std::setfill(' ');
             if (import.is_interesting) {
                 std::cout
