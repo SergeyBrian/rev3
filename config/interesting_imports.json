@@ -1,0 +1,1044 @@
+{
+  "_comment": "List of interesting functions to search for. List is based on info from https://practicalsecurityanalytics.com/threat-hunting-with-function-imports/",
+  "version": 1,
+  "interesting_imports": [
+    {
+      "name": "adjusttokenprivileges",
+      "lib_name": "advapi32.dll",
+      "interest_type": "sink",
+      "category": "privilege"
+    },
+    {
+      "name": "controlservice",
+      "lib_name": "advapi32.dll",
+      "interest_type": "sink",
+      "category": "services"
+    },
+    {
+      "name": "createservicew",
+      "lib_name": "advapi32.dll",
+      "interest_type": "sink",
+      "category": "services"
+    },
+    {
+      "name": "createservicea",
+      "lib_name": "advapi32.dll",
+      "interest_type": "sink",
+      "category": "services"
+    },
+    {
+      "name": "cryptacquirecontextw",
+      "lib_name": "advapi32.dll",
+      "interest_type": "sink",
+      "category": "crypto"
+    },
+    {
+      "name": "cryptacquirecontexta",
+      "lib_name": "advapi32.dll",
+      "interest_type": "sink",
+      "category": "crypto"
+    },
+    {
+      "name": "createtoolhelp32snapshot",
+      "lib_name": "api-ms-win-core-toolhelp-l1-1-0.dll",
+      "interest_type": "masking",
+      "category": "process"
+    },
+    {
+      "name": "certopensystemstorea",
+      "lib_name": "crypt32.dll",
+      "interest_type": "sink",
+      "category": "crypto"
+    },
+    {
+      "name": "certopensystemstorew",
+      "lib_name": "crypt32.dll",
+      "interest_type": "sink",
+      "category": "crypto"
+    },
+    {
+      "name": "bitblt",
+      "lib_name": "gdi32.dll",
+      "interest_type": "source",
+      "category": "gui"
+    },
+    {
+      "name": "icmpcreatefile",
+      "lib_name": "iphlpapi.dll",
+      "interest_type": "source",
+      "category": "network"
+    },
+    {
+      "name": "getadaptersinfo",
+      "lib_name": "iphlpapi.dll",
+      "interest_type": "source",
+      "category": "network"
+    },
+    {
+      "name": "enumcalendarinfoa",
+      "lib_name": "kernel32.dll",
+      "interest_type": "source",
+      "category": "system"
+    },
+    {
+      "name": "getprofileinta",
+      "lib_name": "kernel32.dll",
+      "interest_type": "source",
+      "category": "configuration"
+    },
+    {
+      "name": "getmodulehandlea",
+      "lib_name": "kernel32.dll",
+      "interest_type": "masking",
+      "category": "antianalysis"
+    },
+    {
+      "name": "getmodulehandleexa",
+      "lib_name": "kernel32.dll",
+      "interest_type": "masking",
+      "category": "antianalysis"
+    },
+    {
+      "name": "getmodulehandleexw",
+      "lib_name": "kernel32.dll",
+      "interest_type": "masking",
+      "category": "antianalysis"
+    },
+    {
+      "name": "getmodulehandlew",
+      "lib_name": "kernel32.dll",
+      "interest_type": "masking",
+      "category": "antianalysis"
+    },
+    {
+      "name": "getprocaddress",
+      "lib_name": "kernel32.dll",
+      "interest_type": "masking",
+      "category": "antianalysis"
+    },
+    {
+      "name": "loadlibrarya",
+      "lib_name": "kernel32.dll",
+      "interest_type": "masking",
+      "category": "antianalysis"
+    },
+    {
+      "name": "loadlibraryexw",
+      "lib_name": "kernel32.dll",
+      "interest_type": "masking",
+      "category": "antianalysis"
+    },
+    {
+      "name": "loadlibraryexa",
+      "lib_name": "kernel32.dll",
+      "interest_type": "masking",
+      "category": "antianalysis"
+    },
+    {
+      "name": "loadlibraryw",
+      "lib_name": "kernel32.dll",
+      "interest_type": "masking",
+      "category": "antianalysis"
+    },
+    {
+      "name": "getmodulefilenamea",
+      "lib_name": "kernel32.dll",
+      "interest_type": "source",
+      "category": "system"
+    },
+    {
+      "name": "getmodulefilenamew",
+      "lib_name": "kernel32.dll",
+      "interest_type": "source",
+      "category": "system"
+    },
+    {
+      "name": "connectnamedpipe",
+      "lib_name": "kernel32.dll",
+      "interest_type": "sink",
+      "category": "ipc"
+    },
+    {
+      "name": "disconnectnamedpipe",
+      "lib_name": "kernel32.dll",
+      "interest_type": "sink",
+      "category": "ipc"
+    },
+    {
+      "name": "createfilea",
+      "lib_name": "kernel32.dll",
+      "interest_type": "sink",
+      "category": "filesystem"
+    },
+    {
+      "name": "createfilew",
+      "lib_name": "kernel32.dll",
+      "interest_type": "sink",
+      "category": "filesystem"
+    },
+    {
+      "name": "createfilemappingw",
+      "lib_name": "kernel32.dll",
+      "interest_type": "sink",
+      "category": "filesystem"
+    },
+    {
+      "name": "createfilemappinga",
+      "lib_name": "kernel32.dll",
+      "interest_type": "sink",
+      "category": "filesystem"
+    },
+    {
+      "name": "createmutexw",
+      "lib_name": "kernel32.dll",
+      "interest_type": "sink",
+      "category": "ipc"
+    },
+    {
+      "name": "createmutexa",
+      "lib_name": "kernel32.dll",
+      "interest_type": "sink",
+      "category": "ipc"
+    },
+    {
+      "name": "createprocessa",
+      "lib_name": "kernel32.dll",
+      "interest_type": "sink",
+      "category": "process"
+    },
+    {
+      "name": "createprocessw",
+      "lib_name": "kernel32.dll",
+      "interest_type": "sink",
+      "category": "process"
+    },
+    {
+      "name": "createremotethread",
+      "lib_name": "kernel32.dll",
+      "interest_type": "sink",
+      "category": "process"
+    },
+    {
+      "name": "createtoolhelp32snapshot",
+      "lib_name": "kernel32.dll",
+      "interest_type": "masking",
+      "category": "process"
+    },
+    {
+      "name": "deviceiocontrol",
+      "lib_name": "kernel32.dll",
+      "interest_type": "sink",
+      "category": "system"
+    },
+    {
+      "name": "findfirstfilea",
+      "lib_name": "kernel32.dll",
+      "interest_type": "source",
+      "category": "filesystem"
+    },
+    {
+      "name": "findfirstfilew",
+      "lib_name": "kernel32.dll",
+      "interest_type": "source",
+      "category": "filesystem"
+    },
+    {
+      "name": "findfirstfileexw",
+      "lib_name": "kernel32.dll",
+      "interest_type": "source",
+      "category": "filesystem"
+    },
+    {
+      "name": "findfirstfileexa",
+      "lib_name": "kernel32.dll",
+      "interest_type": "source",
+      "category": "filesystem"
+    },
+    {
+      "name": "findnextfilea",
+      "lib_name": "kernel32.dll",
+      "interest_type": "source",
+      "category": "filesystem"
+    },
+    {
+      "name": "findnextfilew",
+      "lib_name": "kernel32.dll",
+      "interest_type": "source",
+      "category": "filesystem"
+    },
+    {
+      "name": "findresourcea",
+      "lib_name": "kernel32.dll",
+      "interest_type": "source",
+      "category": "system"
+    },
+    {
+      "name": "findresourcew",
+      "lib_name": "kernel32.dll",
+      "interest_type": "source",
+      "category": "system"
+    },
+    {
+      "name": "findresourceexa",
+      "lib_name": "kernel32.dll",
+      "interest_type": "source",
+      "category": "system"
+    },
+    {
+      "name": "findresourceexw",
+      "lib_name": "kernel32.dll",
+      "interest_type": "source",
+      "category": "system"
+    },
+    {
+      "name": "getstartupinfoa",
+      "lib_name": "kernel32.dll",
+      "interest_type": "source",
+      "category": "system"
+    },
+    {
+      "name": "getstartupinfow",
+      "lib_name": "kernel32.dll",
+      "interest_type": "source",
+      "category": "system"
+    },
+    {
+      "name": "getsystemdefaultlangid",
+      "lib_name": "kernel32.dll",
+      "interest_type": "source",
+      "category": "system"
+    },
+    {
+      "name": "gettemppatha",
+      "lib_name": "kernel32.dll",
+      "interest_type": "source",
+      "category": "filesystem"
+    },
+    {
+      "name": "gettemppathw",
+      "lib_name": "kernel32.dll",
+      "interest_type": "source",
+      "category": "filesystem"
+    },
+    {
+      "name": "getthreadcontext",
+      "lib_name": "kernel32.dll",
+      "interest_type": "source",
+      "category": "process"
+    },
+    {
+      "name": "getversion",
+      "lib_name": "kernel32.dll",
+      "interest_type": "masking",
+      "category": "antianalysis"
+    },
+    {
+      "name": "getversionexa",
+      "lib_name": "kernel32.dll",
+      "interest_type": "masking",
+      "category": "antianalysis"
+    },
+    {
+      "name": "getversionexw",
+      "lib_name": "kernel32.dll",
+      "interest_type": "masking",
+      "category": "antianalysis"
+    },
+    {
+      "name": "getwindowsdirectorya",
+      "lib_name": "kernel32.dll",
+      "interest_type": "source",
+      "category": "filesystem"
+    },
+    {
+      "name": "getwindowsdirectoryw",
+      "lib_name": "kernel32.dll",
+      "interest_type": "source",
+      "category": "filesystem"
+    },
+    {
+      "name": "virtualallocex",
+      "lib_name": "kernel32.dll",
+      "interest_type": "sink",
+      "category": "process"
+    },
+    {
+      "name": "wnetuseconnectionw",
+      "lib_name": "mpr.dll",
+      "interest_type": "sink",
+      "category": "network"
+    },
+    {
+      "name": "corbindtoruntimeex",
+      "lib_name": "mscoree.dll",
+      "interest_type": "sink",
+      "category": "process"
+    },
+    {
+      "name": "msvbvm60.dll",
+      "lib_name": "msvbvm60.dll",
+      "interest_type": "sink",
+      "category": "misc"
+    },
+    {
+      "name": "__vbaexcepthandler",
+      "lib_name": "msvbvm60.dll",
+      "interest_type": "sink",
+      "category": "misc"
+    },
+    {
+      "name": "event_sink_queryinterface",
+      "lib_name": "msvbvm60.dll",
+      "interest_type": "sink",
+      "category": "misc"
+    },
+    {
+      "name": "event_sink_release",
+      "lib_name": "msvbvm60.dll",
+      "interest_type": "sink",
+      "category": "misc"
+    },
+    {
+      "name": "event_sink_addref",
+      "lib_name": "msvbvm60.dll",
+      "interest_type": "sink",
+      "category": "misc"
+    },
+    {
+      "name": "dllfunctioncall",
+      "lib_name": "msvbvm60.dll",
+      "interest_type": "sink",
+      "category": "misc"
+    },
+    {
+      "name": "proccallengine",
+      "lib_name": "msvbvm60.dll",
+      "interest_type": "sink",
+      "category": "misc"
+    },
+    {
+      "name": "methcallengine",
+      "lib_name": "msvbvm60.dll",
+      "interest_type": "sink",
+      "category": "misc"
+    },
+    {
+      "name": "_cicos",
+      "lib_name": "msvbvm60.dll",
+      "interest_type": "sink",
+      "category": "misc"
+    },
+    {
+      "name": "__vbafreevar",
+      "lib_name": "msvbvm60.dll",
+      "interest_type": "sink",
+      "category": "misc"
+    },
+    {
+      "name": "_adj_fptan",
+      "lib_name": "msvbvm60.dll",
+      "interest_type": "sink",
+      "category": "misc"
+    },
+    {
+      "name": "_adj_fdiv_m64",
+      "lib_name": "msvbvm60.dll",
+      "interest_type": "sink",
+      "category": "misc"
+    },
+    {
+      "name": "_cisin",
+      "lib_name": "msvbvm60.dll",
+      "interest_type": "sink",
+      "category": "misc"
+    },
+    {
+      "name": "_cilog",
+      "lib_name": "msvbvm60.dll",
+      "interest_type": "sink",
+      "category": "misc"
+    },
+    {
+      "name": "__vbachkstk",
+      "lib_name": "msvbvm60.dll",
+      "interest_type": "sink",
+      "category": "misc"
+    },
+    {
+      "name": "_citan",
+      "lib_name": "msvbvm60.dll",
+      "interest_type": "sink",
+      "category": "misc"
+    },
+    {
+      "name": "_allmul",
+      "lib_name": "msvbvm60.dll",
+      "interest_type": "sink",
+      "category": "misc"
+    },
+    {
+      "name": "_adj_fprem1",
+      "lib_name": "msvbvm60.dll",
+      "interest_type": "sink",
+      "category": "misc"
+    },
+    {
+      "name": "_adj_fdivr_m32i",
+      "lib_name": "msvbvm60.dll",
+      "interest_type": "sink",
+      "category": "misc"
+    },
+    {
+      "name": "_adj_fdivr_m16i",
+      "lib_name": "msvbvm60.dll",
+      "interest_type": "sink",
+      "category": "misc"
+    },
+    {
+      "name": "_adj_fdiv_m32i",
+      "lib_name": "msvbvm60.dll",
+      "interest_type": "sink",
+      "category": "misc"
+    },
+    {
+      "name": "_adj_fdiv_m32",
+      "lib_name": "msvbvm60.dll",
+      "interest_type": "sink",
+      "category": "misc"
+    },
+    {
+      "name": "_adj_fdiv_m16i",
+      "lib_name": "msvbvm60.dll",
+      "interest_type": "sink",
+      "category": "misc"
+    },
+    {
+      "name": "_cisqrt",
+      "lib_name": "msvbvm60.dll",
+      "interest_type": "sink",
+      "category": "misc"
+    },
+    {
+      "name": "_ciatan",
+      "lib_name": "msvbvm60.dll",
+      "interest_type": "sink",
+      "category": "misc"
+    },
+    {
+      "name": "_adj_fprem",
+      "lib_name": "msvbvm60.dll",
+      "interest_type": "sink",
+      "category": "misc"
+    },
+    {
+      "name": "_adj_fpatan",
+      "lib_name": "msvbvm60.dll",
+      "interest_type": "sink",
+      "category": "misc"
+    },
+    {
+      "name": "_adj_fdivr_m64",
+      "lib_name": "msvbvm60.dll",
+      "interest_type": "sink",
+      "category": "misc"
+    },
+    {
+      "name": "_adj_fdivr_m32",
+      "lib_name": "msvbvm60.dll",
+      "interest_type": "sink",
+      "category": "misc"
+    },
+    {
+      "name": "_adj_fdiv_r",
+      "lib_name": "msvbvm60.dll",
+      "interest_type": "sink",
+      "category": "misc"
+    },
+    {
+      "name": "__vbafpexception",
+      "lib_name": "msvbvm60.dll",
+      "interest_type": "sink",
+      "category": "misc"
+    },
+    {
+      "name": "_ciexp",
+      "lib_name": "msvbvm60.dll",
+      "interest_type": "sink",
+      "category": "misc"
+    },
+    {
+      "name": "__vbastrmove",
+      "lib_name": "msvbvm60.dll",
+      "interest_type": "sink",
+      "category": "misc"
+    },
+    {
+      "name": "__vbafreestr",
+      "lib_name": "msvbvm60.dll",
+      "interest_type": "sink",
+      "category": "misc"
+    },
+    {
+      "name": "__vbafreevarlist",
+      "lib_name": "msvbvm60.dll",
+      "interest_type": "sink",
+      "category": "misc"
+    },
+    {
+      "name": "__vbahresultcheckobj",
+      "lib_name": "msvbvm60.dll",
+      "interest_type": "sink",
+      "category": "misc"
+    },
+    {
+      "name": "__vbasetsystemerror",
+      "lib_name": "msvbvm60.dll",
+      "interest_type": "sink",
+      "category": "misc"
+    },
+    {
+      "name": "__vbanew2",
+      "lib_name": "msvbvm60.dll",
+      "interest_type": "sink",
+      "category": "misc"
+    },
+    {
+      "name": "__vbafreestrlist",
+      "lib_name": "msvbvm60.dll",
+      "interest_type": "sink",
+      "category": "misc"
+    },
+    {
+      "name": "__vbastrcopy",
+      "lib_name": "msvbvm60.dll",
+      "interest_type": "sink",
+      "category": "misc"
+    },
+    {
+      "name": "__vbafreeobj",
+      "lib_name": "msvbvm60.dll",
+      "interest_type": "sink",
+      "category": "misc"
+    },
+    {
+      "name": "__vbavarmove",
+      "lib_name": "msvbvm60.dll",
+      "interest_type": "sink",
+      "category": "misc"
+    },
+    {
+      "name": "__vbastrcat",
+      "lib_name": "msvbvm60.dll",
+      "interest_type": "sink",
+      "category": "misc"
+    },
+    {
+      "name": "__vbavardup",
+      "lib_name": "msvbvm60.dll",
+      "interest_type": "sink",
+      "category": "misc"
+    },
+    {
+      "name": "__vbastrvarmove",
+      "lib_name": "msvbvm60.dll",
+      "interest_type": "sink",
+      "category": "misc"
+    },
+    {
+      "name": "__vbaarydestruct",
+      "lib_name": "msvbvm60.dll",
+      "interest_type": "sink",
+      "category": "misc"
+    },
+    {
+      "name": "netwkstagetinfo",
+      "lib_name": "netapi32.dll",
+      "interest_type": "source",
+      "category": "network"
+    },
+    {
+      "name": "sysfreestring",
+      "lib_name": "oleaut32.dll",
+      "interest_type": "sink",
+      "category": "misc"
+    },
+    {
+      "name": "variantinit",
+      "lib_name": "oleaut32.dll",
+      "interest_type": "sink",
+      "category": "misc"
+    },
+    {
+      "name": "variantcopy",
+      "lib_name": "oleaut32.dll",
+      "interest_type": "sink",
+      "category": "misc"
+    },
+    {
+      "name": "sysallocstringlen",
+      "lib_name": "oleaut32.dll",
+      "interest_type": "sink",
+      "category": "misc"
+    },
+    {
+      "name": "variantclear",
+      "lib_name": "oleaut32.dll",
+      "interest_type": "sink",
+      "category": "misc"
+    },
+    {
+      "name": "sysreallocstringlen",
+      "lib_name": "oleaut32.dll",
+      "interest_type": "sink",
+      "category": "misc"
+    },
+    {
+      "name": "safearrayptrofindex",
+      "lib_name": "oleaut32.dll",
+      "interest_type": "sink",
+      "category": "misc"
+    },
+    {
+      "name": "safearraycreate",
+      "lib_name": "oleaut32.dll",
+      "interest_type": "sink",
+      "category": "misc"
+    },
+    {
+      "name": "safearraygetubound",
+      "lib_name": "oleaut32.dll",
+      "interest_type": "sink",
+      "category": "misc"
+    },
+    {
+      "name": "safearraygetlbound",
+      "lib_name": "oleaut32.dll",
+      "interest_type": "sink",
+      "category": "misc"
+    },
+    {
+      "name": "variantchangetype",
+      "lib_name": "oleaut32.dll",
+      "interest_type": "sink",
+      "category": "misc"
+    },
+    {
+      "name": "geterrorinfo",
+      "lib_name": "oleaut32.dll",
+      "interest_type": "source",
+      "category": "misc"
+    },
+    {
+      "name": "variantcopyind",
+      "lib_name": "oleaut32.dll",
+      "interest_type": "sink",
+      "category": "misc"
+    },
+    {
+      "name": "enumprocesses",
+      "lib_name": "psapi.dll",
+      "interest_type": "masking",
+      "category": "antianalysis"
+    },
+    {
+      "name": "enumprocessmodules",
+      "lib_name": "psapi.dll",
+      "interest_type": "masking",
+      "category": "antianalysis"
+    },
+    {
+      "name": "urldownloadtofilea",
+      "lib_name": "urlmon.dll",
+      "interest_type": "source",
+      "category": "network"
+    },
+    {
+      "name": "urldownloadtofilew",
+      "lib_name": "urlmon.dll",
+      "interest_type": "source",
+      "category": "network"
+    },
+    {
+      "name": "findwindowexa",
+      "lib_name": "user32.dll",
+      "interest_type": "masking",
+      "category": "antianalysis"
+    },
+    {
+      "name": "findwindowa",
+      "lib_name": "user32.dll",
+      "interest_type": "masking",
+      "category": "antianalysis"
+    },
+    {
+      "name": "findwindowexw",
+      "lib_name": "user32.dll",
+      "interest_type": "masking",
+      "category": "antianalysis"
+    },
+    {
+      "name": "findwindoww",
+      "lib_name": "user32.dll",
+      "interest_type": "masking",
+      "category": "antianalysis"
+    },
+    {
+      "name": "getasynckeystate",
+      "lib_name": "user32.dll",
+      "interest_type": "source",
+      "category": "gui"
+    },
+    {
+      "name": "getdc",
+      "lib_name": "user32.dll",
+      "interest_type": "source",
+      "category": "gui"
+    },
+    {
+      "name": "getdcex",
+      "lib_name": "user32.dll",
+      "interest_type": "source",
+      "category": "gui"
+    },
+    {
+      "name": "getforegroundwindow",
+      "lib_name": "user32.dll",
+      "interest_type": "source",
+      "category": "user_input"
+    },
+    {
+      "name": "getkeystate",
+      "lib_name": "user32.dll",
+      "interest_type": "source",
+      "category": "user_input"
+    },
+    {
+      "name": "winhttpconnect",
+      "lib_name": "winhttp.dll",
+      "interest_type": "source",
+      "category": "network"
+    },
+    {
+      "name": "winhttpopen",
+      "lib_name": "winhttp.dll",
+      "interest_type": "source",
+      "category": "network"
+    },
+    {
+      "name": "winhttpreceiveresponse",
+      "lib_name": "winhttp.dll",
+      "interest_type": "source",
+      "category": "network"
+    },
+    {
+      "name": "winhttpconnect",
+      "lib_name": "winhttp.dll",
+      "interest_type": "source",
+      "category": "network"
+    },
+    {
+      "name": "winhttpsendrequest",
+      "lib_name": "winhttp.dll",
+      "interest_type": "sink",
+      "category": "network"
+    },
+    {
+      "name": "winhttpopenrequest",
+      "lib_name": "winhttp.dll",
+      "interest_type": "source",
+      "category": "network"
+    },
+    {
+      "name": "winhttpclosehandle",
+      "lib_name": "winhttp.dll",
+      "interest_type": "sink",
+      "category": "network"
+    },
+    {
+      "name": "winhttpquerydataavailable",
+      "lib_name": "winhttp.dll",
+      "interest_type": "source",
+      "category": "network"
+    },
+    {
+      "name": "winhttpqueryheaders",
+      "lib_name": "winhttp.dll",
+      "interest_type": "source",
+      "category": "network"
+    },
+    {
+      "name": "winhttpreaddata",
+      "lib_name": "winhttp.dll",
+      "interest_type": "source",
+      "category": "network"
+    },
+    {
+      "name": "internetconnectw",
+      "lib_name": "wininet.dll",
+      "interest_type": "sink",
+      "category": "network"
+    },
+    {
+      "name": "internetconnecta",
+      "lib_name": "wininet.dll",
+      "interest_type": "sink",
+      "category": "network"
+    },
+    {
+      "name": "internetfindnextfilea",
+      "lib_name": "wininet.dll",
+      "interest_type": "source",
+      "category": "network"
+    },
+    {
+      "name": "internetfindnextfilew",
+      "lib_name": "wininet.dll",
+      "interest_type": "source",
+      "category": "network"
+    },
+    {
+      "name": "internetconnecta",
+      "lib_name": "wininet.dll",
+      "interest_type": "sink",
+      "category": "network"
+    },
+    {
+      "name": "internetopenw",
+      "lib_name": "wininet.dll",
+      "interest_type": "source",
+      "category": "network"
+    },
+    {
+      "name": "internetopena",
+      "lib_name": "wininet.dll",
+      "interest_type": "source",
+      "category": "network"
+    },
+    {
+      "name": "internetreadfile",
+      "lib_name": "wininet.dll",
+      "interest_type": "source",
+      "category": "network"
+    },
+    {
+      "name": "internetconnectw",
+      "lib_name": "wininet.dll",
+      "interest_type": "sink",
+      "category": "network"
+    },
+    {
+      "name": "httpsendrequestw",
+      "lib_name": "wininet.dll",
+      "interest_type": "sink",
+      "category": "network"
+    },
+    {
+      "name": "httpopenrequestw",
+      "lib_name": "wininet.dll",
+      "interest_type": "source",
+      "category": "network"
+    },
+    {
+      "name": "internetopenurla",
+      "lib_name": "wininet.dll",
+      "interest_type": "source",
+      "category": "network"
+    },
+    {
+      "name": "internetconnecta",
+      "lib_name": "wininet.dll",
+      "interest_type": "sink",
+      "category": "network"
+    },
+    {
+      "name": "httpqueryinfoa",
+      "lib_name": "wininet.dll",
+      "interest_type": "source",
+      "category": "network"
+    },
+    {
+      "name": "httpopenrequesta",
+      "lib_name": "wininet.dll",
+      "interest_type": "source",
+      "category": "network"
+    },
+    {
+      "name": "httpsendrequesta",
+      "lib_name": "wininet.dll",
+      "interest_type": "sink",
+      "category": "network"
+    },
+    {
+      "name": "writeconsole",
+      "lib_name": "kernel32.dll",
+      "interest_type": "sink",
+      "category": "ui"
+    },
+    {
+      "name": "writeconsolew",
+      "lib_name": "kernel32.dll",
+      "interest_type": "sink",
+      "category": "ui"
+    },
+    {
+      "name": "readconsole",
+      "lib_name": "kernel32.dll",
+      "interest_type": "source",
+      "category": "ui"
+    },
+    {
+      "name": "readconsolew",
+      "lib_name": "kernel32.dll",
+      "interest_type": "source",
+      "category": "ui"
+    },
+    {
+      "name": "writefile",
+      "lib_name": "kernel32.dll",
+      "interest_type": "sink",
+      "category": "filesystem"
+    },
+    {
+      "name": "writefilew",
+      "lib_name": "kernel32.dll",
+      "interest_type": "sink",
+      "category": "filesystem"
+    },
+    {
+      "name": "readfile",
+      "lib_name": "kernel32.dll",
+      "interest_type": "source",
+      "category": "filesystem"
+    },
+    {
+      "name": "readfilew",
+      "lib_name": "kernel32.dll",
+      "interest_type": "source",
+      "category": "filesystem"
+    },
+    {
+      "name": "isdebuggerpresent",
+      "lib_name": "kernel32.dll",
+      "interest_type": "masking",
+      "category": "antianalysis"
+    },
+    {
+      "name": "isprocessorfeaturepresent",
+      "lib_name": "kernel32.dll",
+      "interest_type": "masking",
+      "category": "antianalysis"
+    },
+    {
+      "name": "getenvironmentstrings",
+      "lib_name": "kernel32.dll",
+      "interest_type": "masking",
+      "category": "antianalysis"
+    },
+    {
+      "name": "getenvironmentstringsw",
+      "lib_name": "kernel32.dll",
+      "interest_type": "masking",
+      "category": "antianalysis"
+    }
+  ]
+}

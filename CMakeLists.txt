@@ -7,6 +7,9 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 include(FetchContent)
 
+set(CONFIG_SOURCE_DIR "${CMAKE_SOURCE_DIR}/config")
+set(CONFIG_DEST_DIR "${CMAKE_BINARY_DIR}")
+
 FetchContent_Declare(
     cxxopts
     GIT_REPOSITORY https://github.com/jarro2783/cxxopts.git
@@ -23,6 +26,14 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(LIEF)
 
+FetchContent_Declare(
+    nlohmann_json
+    GIT_REPOSITORY https://github.com/nlohmann/json
+    GIT_TAG        v3.11.3
+)
+
+FetchContent_MakeAvailable(nlohmann_json)
+
 set(common
     src/utils/logger.hpp
     src/utils/logger.cpp
@@ -31,6 +42,8 @@ set(common
     src/config/config.cpp
     src/common/pre_checks.hpp
     src/common/pre_checks.cpp
+    src/utils/system.hpp
+    src/utils/system.cpp
 )
 
 set(core
@@ -49,4 +62,10 @@ add_executable(${CMAKE_PROJECT_NAME} src/main.cpp
     ${core}
 )
 
-target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE cxxopts LIEF::LIEF)
+target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE cxxopts LIEF::LIEF nlohmann_json::nlohmann_json)
+
+
+add_custom_target(copy_config ALL
+    COMMAND ${CMAKE_COMMAND} -E copy_directory "${CONFIG_SOURCE_DIR}" "${CONFIG_DEST_DIR}"
+    COMMENT "Copying config files to build directory"
+)

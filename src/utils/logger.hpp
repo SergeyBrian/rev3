@@ -15,11 +15,15 @@ enum class LogType {
 };
 
 #define COLOR_RESET "\033[0m"
-#define COLOR_OKAY "\033[32m"
-#define COLOR_DEBUG "\033[0m"
-#define COLOR_INFO "\033[0m"
-#define COLOR_WARN "\033[33m"
-#define COLOR_ERROR "\033[31m"
+#define COLOR_GREEN "\033[32m"
+#define COLOR_YELLOW "\033[33m"
+#define COLOR_RED "\033[31m"
+
+#define COLOR_OKAY COLOR_GREEN
+#define COLOR_DEBUG COLOR_RESET
+#define COLOR_INFO COLOR_RESET
+#define COLOR_WARN COLOR_YELLOW
+#define COLOR_ERROR COLOR_RED
 
 template <typename... Args>
 inline void Log(LogType log_type, const char *format, Args... args) {

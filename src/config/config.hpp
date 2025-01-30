@@ -4,10 +4,14 @@
 #include <vector>
 #include <string>
 
+#include "../core/target.hpp"
+
 namespace config {
 struct StaticAnalysisConfig {
     bool do_sink_search;
     bool do_imports_print;
+    std::vector<core::InterestingFunction> interesting_functions;
+    std::vector<std::string> active_categories;
 };
 
 class Config {

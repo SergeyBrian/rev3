@@ -5,6 +5,11 @@ enum class ErrorCode {
     Ok,
     FileNotFound,
     ParsingError,
+    UnparsedBinary,
+    UnknownFormat,
+    NotImplemented,
+    InvalidConfigFormat,
+    UnknownConfigOption,
     Count
 };
 
@@ -14,6 +19,11 @@ inline const char *ErrorText[static_cast<int>(ErrorCode::Count)] = {
     "No error",
     "File not found",
     "Parsing failed",
+    "Binary was not parsed yet",
+    "Unknown binary file format",
+    "Method not implemented yet",
+    "Config file has invalid format",
+    "Unknown config option",
 };
 
 #endif
