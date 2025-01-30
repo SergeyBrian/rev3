@@ -5,7 +5,7 @@
 #include "../config/config.hpp"
 
 namespace core {
-Function::Function(LIEF::Function lief_info, const std::string &lib_name)
+Function::Function(LIEF::Function lief_info, const std::string &lib_name, const LIEF::Binary *lief_bin)
     : lief_info(lief_info) {
     auto interests = config::Get().static_analysis.interesting_functions;
     std::string lower_name = lief_info.name();
@@ -25,6 +25,8 @@ Function::Function(LIEF::Function lief_info, const std::string &lib_name)
             break;
         }
     }
+
+    xref = lief_bin->xref(lief_info.address());
 
     this->lib_name = lib_name;
 }

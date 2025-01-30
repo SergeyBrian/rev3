@@ -42,9 +42,13 @@ void PrintImports(const Target &target) {
                 std::cout
                     << "\tPotential point of interest: "
                     << InterestTypeName[static_cast<int>(import.interest_type)]
-                    << " [" << import.category << "]" << COLOR_RESET;
+                    << " [" << import.category << "]";
             }
-            std::cout << "\n";
+            if (!import.xref.empty()) {
+                std::cout << "\t" << import.xref.size() << ((import.xref.size() == 1) ? " ref " : " refs ") << "found";
+            }
+
+            std::cout << "\n" << COLOR_RESET;
         }
     }
 }

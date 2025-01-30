@@ -5,6 +5,8 @@
 
 #include <LIEF/LIEF.hpp>
 
+#include "../utils/alias.hpp"
+
 namespace core {
 enum class InterestType { Source, Sink, Masking, Count };
 
@@ -27,8 +29,9 @@ struct Function {
     InterestType interest_type{};
     std::string category{};
     bool is_interesting = false;
+    std::vector<u64> xref;
 
-    Function(LIEF::Function lief_info, const std::string &lib_name);
+    Function(LIEF::Function lief_info, const std::string &lib_name, const LIEF::Binary *lief_bin);
 };
 
 struct Target {

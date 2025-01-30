@@ -34,7 +34,7 @@ Err ParseBinary(Target &target) {
             FARPROC func_addr = GetProcAddress(mod, func.name().c_str());
             FreeLibrary(mod);
             if (func_addr) {
-                target.imports[lib].emplace_back(func, lib);
+                target.imports[lib].emplace_back(func, lib, result.get());
                 found = true;
                 break;
             }
@@ -43,6 +43,7 @@ Err ParseBinary(Target &target) {
             logger::Warn("Symbol %s not found", func.name().c_str());
         }
     }
+
 
     target.lief_info = std::move(result);
 
