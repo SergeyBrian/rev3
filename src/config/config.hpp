@@ -10,6 +10,7 @@ namespace config {
 struct StaticAnalysisConfig {
     bool do_sink_search;
     bool do_imports_print;
+    bool do_poi_disas_print;
     std::vector<core::InterestingFunction> interesting_functions;
     std::vector<std::string> active_categories;
 };

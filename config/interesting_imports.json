@@ -1023,12 +1023,6 @@
       "category": "antianalysis"
     },
     {
-      "name": "isprocessorfeaturepresent",
-      "lib_name": "kernel32.dll",
-      "interest_type": "masking",
-      "category": "antianalysis"
-    },
-    {
       "name": "getenvironmentstrings",
       "lib_name": "kernel32.dll",
       "interest_type": "masking",

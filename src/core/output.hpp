@@ -3,7 +3,8 @@
 
 #include "target.hpp"
 namespace core::output {
-    void PrintImports(const Target &target);
-}
+void PrintImports(const Target &target);
+void PrintPOIDisas(const Target &target);
+}  // namespace core::output
 
 #endif

@@ -7,6 +7,8 @@
 
 #include "../utils/alias.hpp"
 
+#include "static/disas/disassembler.hpp"
+
 namespace core {
 enum class InterestType { Source, Sink, Masking, Count };
 
@@ -29,7 +31,7 @@ struct Function {
     InterestType interest_type{};
     std::string category{};
     bool is_interesting = false;
-    std::vector<u64> xref;
+    std::vector<u64> xrefs;
 
     Function(const LIEF::PE::ImportEntry &lief_info, const std::string &lib_name, const LIEF::PE::Binary *lief_bin);
 };
@@ -39,8 +41,10 @@ struct Target {
     std::string name;
     std::unique_ptr<LIEF::PE::Binary> lief_info{};
     std::map<std::string, std::vector<Function>> imports;
+    static_analysis::disassembler::Disassembler disassembler;
 
     Target(const std::string &filename);
+    void DisassemblePOI();
 };
 }  // namespace core
 

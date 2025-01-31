@@ -34,6 +34,14 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(nlohmann_json)
 
+FetchContent_Declare(
+    capstone
+    GIT_REPOSITORY https://github.com/capstone-engine/capstone
+    GIT_TAG 6.0.0-Alpha3
+)
+
+FetchContent_MakeAvailable(capstone)
+
 set(common
     src/utils/logger.hpp
     src/utils/logger.cpp
@@ -55,6 +63,8 @@ set(core
     src/core/static/parser/parser.cpp
     src/core/output.hpp
     src/core/output.cpp
+    src/core/static/disas/disassembler.hpp
+    src/core/static/disas/disassembler.cpp
 )
 
 add_executable(${CMAKE_PROJECT_NAME} src/main.cpp
@@ -62,7 +72,7 @@ add_executable(${CMAKE_PROJECT_NAME} src/main.cpp
     ${core}
 )
 
-target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE cxxopts LIEF::LIEF nlohmann_json::nlohmann_json)
+target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE cxxopts LIEF::LIEF nlohmann_json::nlohmann_json capstone)
 
 
 add_custom_target(copy_config ALL

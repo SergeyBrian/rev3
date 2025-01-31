@@ -10,6 +10,8 @@ enum class ErrorCode {
     NotImplemented,
     InvalidConfigFormat,
     UnknownConfigOption,
+    TextSectionNotFound,
+    DisassemblerError,
     Count
 };
 
@@ -24,6 +26,8 @@ inline const char *ErrorText[static_cast<int>(ErrorCode::Count)] = {
     "Method not implemented yet",
     "Config file has invalid format",
     "Unknown config option",
+    "No .text section found",
+    "Disassembler failed",
 };
 
 #endif

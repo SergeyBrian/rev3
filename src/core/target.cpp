@@ -26,7 +26,7 @@ Function::Function(const LIEF::PE::ImportEntry &lief_info, const std::string &li
         }
     }
 
-    xref = lief_bin->xref(lief_info.hint_name_rva());
+    xrefs = lief_bin->xref(lief_info.hint_name_rva());
 
     this->lib_name = lib_name;
 }
@@ -34,5 +34,17 @@ Function::Function(const LIEF::PE::ImportEntry &lief_info, const std::string &li
 Target::Target(const std::string &filename) : filename(filename) {
     std::filesystem::path path(filename);
     name = path.stem().string();
+}
+
+
+void Target::DisassemblePOI() {
+    for (const auto &[_, import] : imports) {
+        for (const auto &func : import) {
+            if (!func.is_interesting) continue;
+            for (const auto &xref : func.xrefs) {
+                disassembler.DisassembleNearby(lief_info.get(), xref);
+            } 
+        }
+    }
 }
 }  // namespace core

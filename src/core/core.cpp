@@ -40,6 +40,11 @@ void Run() {
         if (config::Get().static_analysis.do_imports_print) {
             output::PrintImports(target);
         }
+
+        if (config::Get().static_analysis.do_poi_disas_print) {
+            target.DisassemblePOI();
+            output::PrintPOIDisas(target);
+        }
     }
 }
 }  // namespace core

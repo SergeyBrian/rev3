@@ -44,11 +44,20 @@ void PrintImports(const Target &target) {
                     << InterestTypeName[static_cast<int>(import.interest_type)]
                     << " [" << import.category << "]";
             }
-            if (!import.xref.empty()) {
-                std::cout << "\t" << import.xref.size() << ((import.xref.size() == 1) ? " ref " : " refs ") << "found";
+            if (!import.xrefs.empty()) {
+                std::cout << "\t" << import.xrefs.size() << ((import.xrefs.size() == 1) ? " ref " : " refs ") << "found";
             }
 
             std::cout << "\n" << COLOR_RESET;
+        }
+    }
+}
+void PrintPOIDisas(const Target &target) {
+    for (const auto &[addr, entry] : target.disassembler.entries) {
+        if (entry.instructions.empty()) continue;
+        std::cout << "== Disassembly at 0x" << std::hex << addr << " [" << target.name << "]\n";
+        for (const auto& instr : entry.instructions) {
+            std::cout << std::hex << instr->address() << ": " << instr->to_string() << "\n";
         }
     }
 }

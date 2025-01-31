@@ -107,6 +107,8 @@ void InitFromArgs(int argc, char **argv) {
          "privilege, services, crypto, process, gui, network, system, "
          "configuration, antianalysis, ipc, misc, user_input)",
          cxxopts::value<std::vector<std::string>>())
+        ("print-poi-disas", "Print disassembly of code around points of interest",
+         cxxopts::value<bool>()->default_value("true"))
     ;
     // clang-format on
 
@@ -139,6 +141,7 @@ void InitFromArgs(int argc, char **argv) {
         config.static_analysis.do_sink_search =
             result["sink-search"].as<bool>();
         config.static_analysis.do_imports_print = result["imports"].as<bool>();
+        config.static_analysis.do_poi_disas_print = result["print-poi-disas"].as<bool>();
 
         Err err = LoadInterestingFunctions(
             result["interests-file"].as<std::string>(), config);
