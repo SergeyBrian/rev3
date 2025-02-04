@@ -37,7 +37,7 @@ FetchContent_MakeAvailable(nlohmann_json)
 FetchContent_Declare(
     capstone
     GIT_REPOSITORY https://github.com/capstone-engine/capstone
-    GIT_TAG 6.0.0-Alpha3
+    GIT_TAG        6.0.0-Alpha3
 )
 
 FetchContent_MakeAvailable(capstone)

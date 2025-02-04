@@ -2,49 +2,54 @@
 #define CORE_STATIC_FILE_HPP
 
 #include <string>
+#include <map>
+#include <vector>
 
 #include <LIEF/LIEF.hpp>
 
 #include "../utils/alias.hpp"
 
-#include "static/disas/disassembler.hpp"
-
 namespace core {
-enum class InterestType { Source, Sink, Masking, Count };
-
-inline const char *InterestTypeName[static_cast<int>(InterestType::Count)] = {
-    "Source / Trigger",
-    "Sink",
-    "Masking",
+enum class Tag : u8 {
+    Source = 1 << 0,
+    Sink = 1 << 1,
+    Trigger = 1 << 2,
+    Masking = 1 << 3,
+    Count
 };
 
-struct InterestingFunction {
-    std::string name;
-    std::string lib_name;
-    InterestType interest_type;
-    std::string category;
+const std::map<Tag, std::string> TagName{
+    {Tag::Source, "source"},
+    {Tag::Sink, "sink"},
+    {Tag::Trigger, "trigger"},
+    {Tag::Masking, "masking"},
 };
 
 struct Function {
-    LIEF::PE::ImportEntry lief_info;
-    std::string lib_name;
-    InterestType interest_type{};
-    std::string category{};
-    bool is_interesting = false;
+    u64 address{};
+    u16 tags{};
+    std::string mangled_name{};
+    std::string display_name{};
+    std::string comment{};
     std::vector<u64> xrefs;
+};
 
-    Function(const LIEF::PE::ImportEntry &lief_info, const std::string &lib_name, const LIEF::PE::Binary *lief_bin);
+struct Section {
+    std::string name;
+    u64 address;
+    usize size;
+    usize virtual_size;
 };
 
 struct Target {
     std::string filename;
-    std::string name;
-    std::unique_ptr<LIEF::PE::Binary> lief_info{};
+    std::string display_name;
     std::map<std::string, std::vector<Function>> imports;
-    static_analysis::disassembler::Disassembler disassembler;
+    std::vector<Section> sections;
 
-    Target(const std::string &filename);
-    void DisassemblePOI();
+    std::shared_ptr<LIEF::PE::Binary> lief_bin;
+
+    explicit Target(const std::string &filename);
 };
 }  // namespace core
 

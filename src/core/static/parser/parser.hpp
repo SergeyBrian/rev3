@@ -7,6 +7,7 @@
 
 namespace core::static_analysis::parser {
 Err ParseBinary(Target &target);
-}
+std::vector<u64> FindImportsXrefs(LIEF::PE::Binary *bin, u64 address, Err *err);
+}  // namespace core::static_analysis::parser
 
 #endif

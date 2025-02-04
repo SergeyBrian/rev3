@@ -13,6 +13,8 @@
 #include "../utils/errors.hpp"
 #include "../utils/utils.hpp"
 
+#include "../core/target.hpp"
+
 using json = nlohmann::json;
 
 #ifndef NDEBUG
@@ -54,29 +56,30 @@ Err LoadInterestingFunctions(const std::string &filename, Config &config) {
     logger::Debug("Found %d interesting imports",
                   data["interesting_imports"].size());
     for (const auto &obj : data["interesting_imports"]) {
-        if (!config.static_analysis.active_categories.empty() && !utils::contains(config.static_analysis.active_categories,
+        if (!config.static_analysis.active_categories.empty() &&
+            !utils::contains(config.static_analysis.active_categories,
                              std::string(obj["category"]))) {
             continue;
         }
 
-        core::InterestingFunction func{};
+        InterestingFunction func{};
         func.name = obj["name"];
         func.lib_name = obj["lib_name"];
         func.category = obj["category"];
 
-        std::string interest_type = obj["interest_type"];
-
-        if (interest_type == "source") {
-            func.interest_type = core::InterestType::Source;
-        } else if (interest_type == "sink") {
-            func.interest_type = core::InterestType::Sink;
-        } else if (interest_type == "masking") {
-            func.interest_type = core::InterestType::Masking;
-        } else {
-            logger::Error("Can't use `%s` as interest_type",
-                          interest_type.c_str());
-            return Err::UnknownConfigOption;
+        for (const auto &tag : obj["tags"]) {
+            if (tag == "source") {
+                func.tags |= static_cast<u8>(core::Tag::Source);
+            } else if (tag == "sink") {
+                func.tags |= static_cast<u8>(core::Tag::Sink);
+            } else if (tag == "masking") {
+                func.tags |= static_cast<u8>(core::Tag::Masking);
+            } else {
+                logger::Error("Unknown tag `%s`", std::string(tag).c_str());
+                return Err::UnknownConfigOption;
+            }
         }
+
         config.static_analysis.interesting_functions.push_back(func);
     }
     logger::Okay("Loaded %d interesting imports",
@@ -141,7 +144,8 @@ void InitFromArgs(int argc, char **argv) {
         config.static_analysis.do_sink_search =
             result["sink-search"].as<bool>();
         config.static_analysis.do_imports_print = result["imports"].as<bool>();
-        config.static_analysis.do_poi_disas_print = result["print-poi-disas"].as<bool>();
+        config.static_analysis.do_poi_disas_print =
+            result["print-poi-disas"].as<bool>();
 
         Err err = LoadInterestingFunctions(
             result["interests-file"].as<std::string>(), config);

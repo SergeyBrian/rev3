@@ -4,14 +4,21 @@
 #include <vector>
 #include <string>
 
-#include "../core/target.hpp"
+#include "../utils/alias.hpp"
 
 namespace config {
+struct InterestingFunction {
+    std::string name;
+    std::string lib_name;
+    u16 tags;
+    std::string category;
+};
+
 struct StaticAnalysisConfig {
     bool do_sink_search;
     bool do_imports_print;
     bool do_poi_disas_print;
-    std::vector<core::InterestingFunction> interesting_functions;
+    std::vector<InterestingFunction> interesting_functions;
     std::vector<std::string> active_categories;
 };
 
