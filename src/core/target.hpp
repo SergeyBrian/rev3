@@ -9,6 +9,8 @@
 
 #include "../utils/alias.hpp"
 
+#include "static/disas/disassembler.hpp"
+
 namespace core {
 enum class Tag : u8 {
     Source = 1 << 0,
@@ -47,7 +49,11 @@ struct Target {
     std::map<std::string, std::vector<Function>> imports;
     std::vector<Section> sections;
 
+    Section text;
+
     std::shared_ptr<LIEF::PE::Binary> lief_bin;
+
+    static_analysis::disassembler::Disassembly disassembly;
 
     explicit Target(const std::string &filename);
 };

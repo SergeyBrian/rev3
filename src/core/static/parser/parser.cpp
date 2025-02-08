@@ -18,13 +18,23 @@ Err ParseBinary(Target &target) {
     logger::Okay("Parsing done");
 
     for (const auto &section : result->sections()) {
-        logger::Debug("Found section: %s", section.name().c_str());
+        logger::Debug("Found section %s at 0x%x", section.name().c_str(),
+                      section.virtual_address());
         target.sections.push_back(Section{
             .name = section.name(),
             .address = section.virtual_address(),
             .size = section.size(),
             .virtual_size = section.virtual_size(),
         });
+        if (section.name() == ".text") {
+            logger::Okay(".text found at 0x%x", section.virtual_address());
+            target.text = {
+                .name = section.name(),
+                .address = section.virtual_address(),
+                .size = section.size(),
+                .virtual_size = section.virtual_size(),
+            };
+        }
     }
 
     auto libs = result->imports();
@@ -61,8 +71,12 @@ Err ParseBinary(Target &target) {
 
     return err;
 }
-
-std::vector<u64> FindImportsXrefs(LIEF::PE::Binary *bin, u64 address, Err *err) {
-    return bin->xref(address);
+std::vector<u64> FindImportsXrefs(LIEF::PE::Binary *bin, u64 address,
+                                  Err *err) {
+    auto res = bin->xref(address);
+    for (const auto &xref : res) {
+        logger::Debug("\t0x%x -> ...", xref);
+    }
+    return res;
 }
 }  // namespace core::static_analysis::parser

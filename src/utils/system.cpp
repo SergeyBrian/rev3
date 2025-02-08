@@ -23,4 +23,4 @@ std::string GetDefaultPath() {
     return {};
 #endif
 }
-}  // namespace utils
+}  // namespace util

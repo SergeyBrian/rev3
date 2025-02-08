@@ -102,6 +102,7 @@ void InitFromArgs(int argc, char **argv) {
         ("files", "Input files to analyze", cxxopts::value<std::vector<std::string>>())
         ("h,help", "Print usage")
         ("v,verbose", "Enable verbose output", cxxopts::value<bool>()->default_value(DEFAULT_VERBOSITY))
+        ("q,quiet", "Disable verbose output", cxxopts::value<bool>())
         ("s,sink-search", "Search for potential sinks", cxxopts::value<bool>()->default_value("false"))
         ("i,imports", "Print imports table", cxxopts::value<bool>()->default_value("false"))
         ("interests-file", "Specify path to .json file with list of interesting symbols", cxxopts::value<std::string>()->default_value(utils::GetDefaultPath() + "\\interesting_imports.json"))
@@ -112,6 +113,7 @@ void InitFromArgs(int argc, char **argv) {
          cxxopts::value<std::vector<std::string>>())
         ("print-poi-disas", "Print disassembly of code around points of interest",
          cxxopts::value<bool>()->default_value("true"))
+        ("inspect", "Address of interest", cxxopts::value<std::string>()->default_value("0x0"))
     ;
     // clang-format on
 
@@ -140,12 +142,16 @@ void InitFromArgs(int argc, char **argv) {
                 result["categories"].as<std::vector<std::string>>();
         }
 
-        config.verbose_logs = result["verbose"].as<bool>();
+        config.verbose_logs =
+            result["verbose"].as<bool>() && !result.count("quiet");
         config.static_analysis.do_sink_search =
             result["sink-search"].as<bool>();
         config.static_analysis.do_imports_print = result["imports"].as<bool>();
         config.static_analysis.do_poi_disas_print =
             result["print-poi-disas"].as<bool>();
+        auto inspect_address_str = result["inspect"].as<std::string>();
+        config.static_analysis.inspect_address =
+            std::strtoull(inspect_address_str.c_str(), nullptr, 16);
 
         Err err = LoadInterestingFunctions(
             result["interests-file"].as<std::string>(), config);
@@ -162,6 +168,10 @@ void InitFromArgs(int argc, char **argv) {
         }
         logger::Debug("Do sink search: %s",
                       config.static_analysis.do_sink_search ? "true" : "false");
+        if (config.static_analysis.inspect_address) {
+            logger::Debug("Inspecting address 0x%x",
+                          config.static_analysis.inspect_address);
+        }
 
     } catch (const cxxopts::exceptions::parsing &e) {
         std::cerr << "Error: " << e.what() << "\n";

@@ -20,6 +20,7 @@ struct StaticAnalysisConfig {
     bool do_poi_disas_print;
     std::vector<InterestingFunction> interesting_functions;
     std::vector<std::string> active_categories;
+    u64 inspect_address;
 };
 
 class Config {

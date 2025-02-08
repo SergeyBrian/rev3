@@ -2,11 +2,14 @@
 #define LOGGER_HPP
 
 #include <cstdio>
+#include <iostream>
+#include <sstream>
 
 #include "../config/config.hpp"
 
 namespace logger {
 enum class LogType {
+    Print,
     Okay,
     Debug,
     Info,
@@ -18,6 +21,7 @@ enum class LogType {
 #define COLOR_GREEN "\033[32m"
 #define COLOR_YELLOW "\033[33m"
 #define COLOR_RED "\033[31m"
+#define COLOR_GRAY "\033[90m"
 
 #define COLOR_OKAY COLOR_GREEN
 #define COLOR_DEBUG COLOR_RESET
@@ -31,6 +35,7 @@ inline void Log(LogType log_type, const char *format, Args... args) {
 
     const char *color = COLOR_RESET;
     const char *prefix = "";
+    const char *reset = COLOR_RESET;
 
     switch (log_type) {
         case LogType::Okay:
@@ -53,11 +58,15 @@ inline void Log(LogType log_type, const char *format, Args... args) {
             color = COLOR_ERROR;
             prefix = "[!] ";
             break;
+        case LogType::Print:
+            color = "";
+            reset = "";
+            break;
     }
 
     printf("%s%s", color, prefix);
     printf(format, args...);
-    printf("%s\n", COLOR_RESET);
+    printf("%s\n", reset);
 }
 
 template <typename... Args>
@@ -86,6 +95,45 @@ template <typename... Args>
 inline void Error(const char *format, Args... args) {
     Log(LogType::Error, format, args...);
 }
+
+template <typename... Args>
+inline void Printf(const char *format, Args... args) {
+    Log(LogType::Print, format, args...);
+}
+
+class Logger {
+public:
+    template <typename T>
+    Logger &operator<<(const T &value) {
+        if (config::Get().verbose_logs) {
+            buffer_ << value;
+        }
+        return *this;
+    }
+
+    Logger &operator<<(std::ostream &(*func)(std::ostream &)) {
+        if (config::Get().verbose_logs &&
+            (func ==
+                 static_cast<std::ostream &(*)(std::ostream &)>(std::endl) ||
+             func ==
+                 static_cast<std::ostream &(*)(std::ostream &)>(std::flush))) {
+            Flush();
+        }
+        return *this;
+    }
+
+private:
+    std::ostringstream buffer_;
+
+    void Flush() {
+        std::cout << buffer_.str();
+        buffer_.str("");
+        buffer_.clear();
+    }
+};
+
+inline Logger log;
+
 }  // namespace logger
 
 #endif
