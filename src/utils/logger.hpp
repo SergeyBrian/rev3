@@ -108,17 +108,7 @@ public:
         if (config::Get().verbose_logs) {
             buffer_ << value;
         }
-        return *this;
-    }
-
-    Logger &operator<<(std::ostream &(*func)(std::ostream &)) {
-        if (config::Get().verbose_logs &&
-            (func ==
-                 static_cast<std::ostream &(*)(std::ostream &)>(std::endl) ||
-             func ==
-                 static_cast<std::ostream &(*)(std::ostream &)>(std::flush))) {
-            Flush();
-        }
+        Flush();
         return *this;
     }
 

@@ -29,8 +29,8 @@ Disassembly::Disassembly() {
 }
 void Print(const cs_insn *instr, u64 count) {
     while (count--) {
-        logger::Printf("0x%" PRIx64 ":\t%s\t\t%s\n", instr->address, instr->mnemonic,
-               instr->op_str);
+        logger::Printf("0x%" PRIx64 ":\t%s\t\t%s", instr->address,
+                       instr->mnemonic, instr->op_str);
         instr++;
     }
 }

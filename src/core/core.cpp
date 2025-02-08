@@ -34,8 +34,7 @@ Err Init() {
 Err AnalyzeImports(Target &target) {
     Err err{};
 
-    logger::Debug("Analyzing imports");
-    logger::Debug("Searching for xrefs: Step 1");
+    logger::Debug("Mapping IAT to .rdata");
 
     for (auto &[_, entries] : target.imports) {
         for (auto &entry : entries) {
@@ -57,9 +56,10 @@ Err AnalyzeImports(Target &target) {
     return err;
 }
 
-Err DoXrefsSearch(Target &target) {
+Err DoIATXrefsSearch(Target &target) {
     Err err{};
 
+    logger::Debug("Performing IAT xrefs search");
     std::vector<u64> calls{};
 
     for (u64 i = 1; i < target.disassembly.count; i++) {
@@ -140,6 +140,14 @@ Err DoXrefsSearch(Target &target) {
             }
         }
     }
+
+    return err;
+}
+
+Err DoXrefsSearch(Target &target) {
+    Err err{};
+
+    err = DoIATXrefsSearch(target);
 
     return err;
 }
