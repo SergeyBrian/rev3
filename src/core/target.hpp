@@ -10,6 +10,7 @@
 #include "../utils/alias.hpp"
 
 #include "static/disas/disassembler.hpp"
+#include "static/control/control.hpp"
 
 namespace core {
 enum class Tag : u8 {
@@ -29,6 +30,7 @@ const std::map<Tag, std::string> TagName{
 
 struct Function {
     u64 address{};
+    u64 ret_address{};
     u16 tags{};
     std::string mangled_name{};
     std::string display_name{};
@@ -54,6 +56,7 @@ struct Target {
     std::shared_ptr<LIEF::PE::Binary> lief_bin;
 
     static_analysis::disassembler::Disassembly disassembly;
+    static_analysis::ControlFlowGraph cfg;
 
     explicit Target(const std::string &filename);
 };

@@ -15,7 +15,7 @@ struct InterestingFunction {
 };
 
 struct StaticAnalysisConfig {
-    bool do_sink_search;
+    std::string sink_target;
     bool do_imports_print;
     bool do_poi_disas_print;
     std::vector<InterestingFunction> interesting_functions;

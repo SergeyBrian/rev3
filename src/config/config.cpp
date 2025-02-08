@@ -103,7 +103,7 @@ void InitFromArgs(int argc, char **argv) {
         ("h,help", "Print usage")
         ("v,verbose", "Enable verbose output", cxxopts::value<bool>()->default_value(DEFAULT_VERBOSITY))
         ("q,quiet", "Disable verbose output", cxxopts::value<bool>())
-        ("s,sink-search", "Search for potential sinks", cxxopts::value<bool>()->default_value("false"))
+        ("s,sink", "Set target sink name, if not set, will search for all potential sinks", cxxopts::value<std::string>())
         ("i,imports", "Print imports table", cxxopts::value<bool>()->default_value("false"))
         ("interests-file", "Specify path to .json file with list of interesting symbols", cxxopts::value<std::string>()->default_value(utils::GetDefaultPath() + "\\interesting_imports.json"))
         ("c,categories",
@@ -144,8 +144,7 @@ void InitFromArgs(int argc, char **argv) {
 
         config.verbose_logs =
             result["verbose"].as<bool>() && !result.count("quiet");
-        config.static_analysis.do_sink_search =
-            result["sink-search"].as<bool>();
+        config.static_analysis.sink_target = result["sink"].as<std::string>();
         config.static_analysis.do_imports_print = result["imports"].as<bool>();
         config.static_analysis.do_poi_disas_print =
             result["print-poi-disas"].as<bool>();
@@ -166,8 +165,8 @@ void InitFromArgs(int argc, char **argv) {
         for (const auto &file : config.input_files) {
             logger::Debug("%s", file.c_str());
         }
-        logger::Debug("Do sink search: %s",
-                      config.static_analysis.do_sink_search ? "true" : "false");
+        logger::Debug("Sink search target: %s",
+                      config.static_analysis.sink_target.c_str());
         if (config.static_analysis.inspect_address) {
             logger::Debug("Inspecting address 0x%x",
                           config.static_analysis.inspect_address);

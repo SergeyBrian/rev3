@@ -1,0 +1,65 @@
+#ifndef CORE_STATIC_CONTROL_HPP
+#define CORE_STATIC_CONTROL_HPP
+
+#include <vector>
+#include <unordered_map>
+#include <memory>
+
+#include <LIEF/PE.hpp>
+
+#include "../disas/disassembler.hpp"
+
+#include "../../../utils/alias.hpp"
+#include "../../../utils/errors.hpp"
+
+namespace core::static_analysis {
+struct BaseBlock {
+    u64 address;
+    usize size;
+};
+
+enum class CFGEdgeType : u8 {
+    Jmp,
+    Jcc,
+    Call,
+    Ret,
+    Int,
+};
+
+struct CFGNode;
+
+struct CFGEdge {
+    CFGEdgeType type;
+    CFGNode *target;
+    CFGNode *source;
+};
+
+struct CFGNode {
+    BaseBlock block{};
+
+    std::vector<CFGEdge> out_edges;
+    std::vector<CFGEdge> in_edges;
+    std::vector<CFGNode *> callers;
+};
+
+struct ControlFlowGraph {
+    std::unordered_map<u64, std::unique_ptr<CFGNode>> nodes;
+
+    CFGNode *FindNode(u64 address) const;
+
+    ControlFlowGraph();
+
+    Err Build(disassembler::Disassembly *disas, LIEF::PE::Binary *bin,
+              const std::vector<u64> &targets);
+
+private:
+    void AddEdge(CFGNode *from, CFGNode *to, CFGEdgeType type);
+    CFGNode *AddNode(CFGNode *node, disassembler::Disassembly *disas,
+                     LIEF::PE::Binary *bin);
+    CFGNode *MakeFirstNode(disassembler::Disassembly *disas,
+                           LIEF::PE::Binary *bin);
+    void MapBaseBlocks(disassembler::Disassembly *disas, LIEF::PE::Binary *bin);
+};
+}  // namespace core::static_analysis
+
+#endif

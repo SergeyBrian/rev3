@@ -10,6 +10,8 @@
 #include <capstone/capstone.h>
 
 namespace core::static_analysis::disassembler {
+static const u64 MaxRegSearchOffset = 4;
+
 Err Disassembly::Disassemble(const byte *ptr, usize size) {
     Err err{};
 
@@ -18,6 +20,9 @@ Err Disassembly::Disassemble(const byte *ptr, usize size) {
         return Err::DisassemblerError;
     }
     logger::Okay("Disassembly finished. %d instructions found", count);
+    for (u64 i = 0; i < count; i++) {
+        instr_map[instructions[i].address] = &instructions[i];
+    }
 
     return err;
 }
@@ -55,5 +60,41 @@ i64 ParseOffsetPtr(const char *opstr) {
     }
 
     return 0;
+}
+
+u64 FindRegValue(x86_reg reg, const cs_insn *instr) {
+    for (u64 i = 0; i < MaxRegSearchOffset; i++ && instr--) {
+        if (!strstr(instr->mnemonic, "mov") &&
+            !strstr(instr->mnemonic, "lea")) {
+            continue;
+        }
+        auto x86 = instr->detail->x86;
+        if (x86.operands[0].type != X86_OP_REG ||
+            x86.operands[1].type != X86_OP_IMM) {
+            continue;
+        }
+
+        if (x86.operands[0].reg == reg) return x86.operands[0].imm;
+    }
+
+    return 0;
+}
+
+u64 GetJmpAddress(const cs_insn *instr) {
+    auto op = instr->detail->x86.operands[0];
+    switch (op.type) {
+        case X86_OP_INVALID:
+            logger::Warn("Invalid jmp operand");
+            return 0;
+        case X86_OP_REG: {
+            auto reg = op.reg;
+            return FindRegValue(reg, instr);
+        }
+        case X86_OP_IMM:
+            return op.imm;
+        case X86_OP_MEM:
+            logger::Warn("Mem-based jmp not supported");
+            return 0;
+    }
 }
 }  // namespace core::static_analysis::disassembler

@@ -7,8 +7,9 @@
 #include "../common/pre_checks.hpp"
 
 #include "target.hpp"
-#include "static/parser/parser.hpp"
 #include "output.hpp"
+#include "static/parser/parser.hpp"
+#include "static/control/control.hpp"
 
 namespace core {
 static std::vector<Target> targets{};
@@ -181,6 +182,37 @@ void Run() {
         err = DoXrefsSearch(target);
         if (err != Err::Ok) {
             logger::Error("Xrefs search failed for `%s`",
+                          target.display_name.c_str());
+            continue;
+        }
+
+        std::vector<u64> cf_targets{};
+        for (const auto &[_, funcs] : target.imports) {
+            for (const auto &func : funcs) {
+                if (!config::Get().static_analysis.sink_target.empty() &&
+                    config::Get().static_analysis.sink_target !=
+                        func.display_name) {
+                    continue;
+                }
+                bool found = false;
+                for (const auto xref : func.xrefs) {
+                    if (target.lief_bin->section_from_rva(xref)->name() !=
+                        ".text")
+                        continue;
+                    found = true;
+                }
+                if (!found) {
+                    logger::Warn("Skipping `%s`. No direct references found");
+                    continue;
+                }
+                cf_targets.push_back(func.address);
+            }
+        }
+
+        err = target.cfg.Build(&target.disassembly, target.lief_bin.get(),
+                               cf_targets);
+        if (err != Err::Ok) {
+            logger::Error("Static control flow analysis failed for `%s`",
                           target.display_name.c_str());
             continue;
         }

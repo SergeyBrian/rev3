@@ -12,6 +12,7 @@ enum class ErrorCode {
     UnknownConfigOption,
     TextSectionNotFound,
     DisassemblerError,
+    NoXrefsFound,
     Count
 };
 
@@ -28,6 +29,7 @@ inline const char *ErrorText[static_cast<int>(ErrorCode::Count)] = {
     "Unknown config option",
     "No .text section found",
     "Disassembler failed",
+    "No xrefs found",
 };
 
 #endif

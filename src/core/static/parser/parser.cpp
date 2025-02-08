@@ -15,6 +15,14 @@ Err ParseBinary(Target &target) {
         return Err::ParsingError;
     }
 
+    if (!result->has_exceptions()) {
+        logger::Warn("No .pdata section found");
+    }
+
+    if (!result->has_relocations()) {
+        logger::Warn("No .reloc section found");
+    }
+
     logger::Okay("Parsing done");
 
     for (const auto &section : result->sections()) {
@@ -78,5 +86,28 @@ std::vector<u64> FindImportsXrefs(LIEF::PE::Binary *bin, u64 address,
         logger::Debug("\t0x%x -> ...", xref);
     }
     return res;
+}
+
+bool IsCode(const LIEF::PE::Binary *bin, u64 addr) {
+    if (!bin->has_relocations() && !bin->has_exceptions()) {
+        logger::Warn("Can't verify that code is executable");
+        return true;
+    }
+
+    for (const auto &func : bin->exception_functions()) {
+        if (func.address() <= addr && addr <= func.address() + func.size()) {
+            return true;
+        }
+    }
+
+    for (const auto &reloc : bin->relocations()) {
+        auto base_rva = reloc.virtual_address();
+        if (!(base_rva <= addr && addr < base_rva + 0x1000)) continue;
+        for (const auto &entry : reloc.entries()) {
+            if (addr - base_rva == entry.address()) return true;
+        }
+    }
+
+    return false;
 }
 }  // namespace core::static_analysis::parser

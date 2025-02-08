@@ -65,6 +65,8 @@ set(core
     src/core/output.cpp
     src/core/static/disas/disassembler.hpp
     src/core/static/disas/disassembler.cpp
+    src/core/static/control/control.hpp
+    src/core/static/control/control.cpp
 )
 
 add_executable(${CMAKE_PROJECT_NAME} src/main.cpp
