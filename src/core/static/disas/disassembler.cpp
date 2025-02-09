@@ -15,6 +15,7 @@ static const u64 MaxRegSearchOffset = 4;
 Err Disassembly::Disassemble(const byte *ptr, usize size) {
     Err err{};
 
+    cs_option(handle, CS_OPT_DETAIL, CS_OPT_ON);
     count = cs_disasm(handle, ptr, size, 0x1000, 0, &instructions);
     if (count == 0) {
         return Err::DisassemblerError;
@@ -63,19 +64,24 @@ i64 ParseOffsetPtr(const char *opstr) {
 }
 
 u64 FindRegValue(x86_reg reg, const cs_insn *instr) {
-    for (u64 i = 0; i < MaxRegSearchOffset; i++ && instr--) {
+    for (u64 i = 0; i < MaxRegSearchOffset; i++, instr--) {
+        Print(instr, 1);
         if (!strstr(instr->mnemonic, "mov") &&
             !strstr(instr->mnemonic, "lea")) {
             continue;
         }
         auto x86 = instr->detail->x86;
-        if (x86.operands[0].type != X86_OP_REG ||
-            x86.operands[1].type != X86_OP_IMM) {
+        if (x86.operands[0].type != X86_OP_REG) continue;
+        if (x86.operands[1].type != X86_OP_IMM &&
+            x86.operands[1].type != X86_OP_REG) {
             continue;
         }
-
-        if (x86.operands[0].reg == reg) return x86.operands[0].imm;
+        if (x86.operands[0].reg != reg) continue;
+        if (x86.operands[1].type == X86_OP_IMM) return x86.operands[1].imm;
+        return FindRegValue(x86.operands[1].reg, instr);
     }
+    logger::Warn("Failed to find reg value within %d instructions",
+                 MaxRegSearchOffset);
 
     return 0;
 }
@@ -94,6 +100,28 @@ u64 GetJmpAddress(const cs_insn *instr) {
             return op.imm;
         case X86_OP_MEM:
             logger::Warn("Mem-based jmp not supported");
+            return 0;
+        default:
+            return 0;
+    }
+}
+
+u64 GetCallAddress(const cs_insn *instr) {
+    auto op = instr->detail->x86.operands[0];
+    switch (op.type) {
+        case X86_OP_INVALID:
+            logger::Warn("Invalid call operand");
+            return 0;
+        case X86_OP_REG: {
+            auto reg = op.reg;
+            return FindRegValue(reg, instr);
+        }
+        case X86_OP_IMM:
+            return op.imm;
+        case X86_OP_MEM:
+            logger::Warn("Mem-based call not supported");
+            return 0;
+        default:
             return 0;
     }
 }

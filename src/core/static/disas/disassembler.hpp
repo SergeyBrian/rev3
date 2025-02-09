@@ -11,7 +11,7 @@ namespace core::static_analysis::disassembler {
 struct Disassembly {
     u64 address;
     cs_insn *instructions;
-    std::map<u64, cs_insn*> instr_map;
+    std::map<u64, cs_insn *> instr_map;
     usize count;
 
     Err Disassemble(const byte *ptr, usize size);
@@ -25,6 +25,7 @@ private:
 void Print(const cs_insn *instr, u64 count = 1);
 i64 ParseOffsetPtr(const char *opstr);
 u64 GetJmpAddress(const cs_insn *instr);
+u64 GetCallAddress(const cs_insn *instr);
 }  // namespace core::static_analysis::disassembler
 
 #endif

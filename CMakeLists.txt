@@ -42,6 +42,13 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(capstone)
 
+FetchContent_Declare(
+  googletest
+  URL https://github.com/google/googletest/archive/refs/tags/v1.16.0.zip
+)
+
+FetchContent_MakeAvailable(googletest)
+
 set(common
     src/utils/logger.hpp
     src/utils/logger.cpp
@@ -67,6 +74,10 @@ set(core
     src/core/static/disas/disassembler.cpp
     src/core/static/control/control.hpp
     src/core/static/control/control.cpp
+    src/core/bin.hpp
+    src/core/bin.cpp
+    src/core/static/parser/lief_bin.hpp
+    src/core/static/parser/lief_bin.cpp
 )
 
 add_executable(${CMAKE_PROJECT_NAME} src/main.cpp
@@ -74,10 +85,28 @@ add_executable(${CMAKE_PROJECT_NAME} src/main.cpp
     ${core}
 )
 
-target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE cxxopts LIEF::LIEF nlohmann_json::nlohmann_json capstone)
+set(libs
+cxxopts LIEF::LIEF nlohmann_json::nlohmann_json capstone
+)
+
+target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE ${libs})
 
 
 add_custom_target(copy_config ALL
     COMMAND ${CMAKE_COMMAND} -E copy_directory "${CONFIG_SOURCE_DIR}" "${CONFIG_DEST_DIR}"
     COMMENT "Copying config files to build directory"
 )
+
+enable_testing()
+
+set(tests 
+    tests/static/control/test_control.cpp
+)
+
+add_executable(runTests 
+    ${tests}
+    ${common}
+    ${core}
+)
+target_link_libraries(runTests gtest_main gmock_main ${libs})
+add_test(NAME Tests COMMAND runTests)

@@ -18,6 +18,7 @@ struct BaseBlock {
 };
 
 enum class CFGEdgeType : u8 {
+    Invalid,
     Jmp,
     Jcc,
     Call,
@@ -39,6 +40,13 @@ struct CFGNode {
     std::vector<CFGEdge> out_edges;
     std::vector<CFGEdge> in_edges;
     std::vector<CFGNode *> callers;
+
+    bool returns{};
+};
+struct EdgeTemplate {
+    u64 from;
+    u64 to;
+    CFGEdgeType type;
 };
 
 struct ControlFlowGraph {
@@ -56,6 +64,10 @@ struct ControlFlowGraph {
 
     ControlFlowGraph(ControlFlowGraph &&) noexcept = default;
     ControlFlowGraph &operator=(ControlFlowGraph &&) noexcept = default;
+
+    static std::unique_ptr<ControlFlowGraph> MakeCFG(
+        std::vector<core::static_analysis::BaseBlock> blocks,
+        std::vector<EdgeTemplate> edges);
 
 private:
     void AddEdge(CFGNode *from, CFGNode *to, CFGEdgeType type);
