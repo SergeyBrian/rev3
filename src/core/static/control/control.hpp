@@ -5,9 +5,8 @@
 #include <unordered_map>
 #include <memory>
 
-#include <LIEF/PE.hpp>
-
 #include "../disas/disassembler.hpp"
+#include "../../bin.hpp"
 
 #include "../../../utils/alias.hpp"
 #include "../../../utils/errors.hpp"
@@ -49,16 +48,21 @@ struct ControlFlowGraph {
 
     ControlFlowGraph();
 
-    Err Build(disassembler::Disassembly *disas, LIEF::PE::Binary *bin,
+    Err Build(disassembler::Disassembly *disas, BinInfo *bin,
               const std::vector<u64> &targets);
+
+    ControlFlowGraph(const ControlFlowGraph &) = delete;
+    ControlFlowGraph &operator=(const ControlFlowGraph &) = delete;
+
+    ControlFlowGraph(ControlFlowGraph &&) noexcept = default;
+    ControlFlowGraph &operator=(ControlFlowGraph &&) noexcept = default;
 
 private:
     void AddEdge(CFGNode *from, CFGNode *to, CFGEdgeType type);
     CFGNode *AddNode(CFGNode *node, disassembler::Disassembly *disas,
-                     LIEF::PE::Binary *bin);
-    CFGNode *MakeFirstNode(disassembler::Disassembly *disas,
-                           LIEF::PE::Binary *bin);
-    void MapBaseBlocks(disassembler::Disassembly *disas, LIEF::PE::Binary *bin);
+                     BinInfo *bin);
+    CFGNode *MakeFirstNode(disassembler::Disassembly *disas, BinInfo *bin);
+    void MapBaseBlocks(disassembler::Disassembly *disas, BinInfo *bin);
 };
 }  // namespace core::static_analysis
 

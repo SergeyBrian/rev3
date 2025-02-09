@@ -3,6 +3,7 @@
 #include <LIEF/LIEF.hpp>
 
 #include "../../../utils/logger.hpp"
+#include "lief_bin.hpp"
 
 namespace core::static_analysis::parser {
 Err ParseBinary(Target &target) {
@@ -75,7 +76,8 @@ Err ParseBinary(Target &target) {
         }
     }
 
-    target.lief_bin = std::move(result);
+    target.bin_info =
+        std::make_unique<static_analyis::parser::LiefBin>(std::move(result));
 
     return err;
 }

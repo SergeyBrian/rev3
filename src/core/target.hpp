@@ -9,6 +9,7 @@
 
 #include "../utils/alias.hpp"
 
+#include "bin.hpp"
 #include "static/disas/disassembler.hpp"
 #include "static/control/control.hpp"
 
@@ -53,7 +54,7 @@ struct Target {
 
     Section text;
 
-    std::shared_ptr<LIEF::PE::Binary> lief_bin;
+    std::unique_ptr<BinInfo> bin_info;
 
     static_analysis::disassembler::Disassembly disassembly;
     static_analysis::ControlFlowGraph cfg;

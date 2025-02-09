@@ -1,7 +1,5 @@
 #include "control.hpp"
 
-#include "../parser/parser.hpp"
-
 #include "../../../utils/logger.hpp"
 
 namespace core::static_analysis {
@@ -107,8 +105,8 @@ CFGEdgeType GetEdgeType(u16 opcode) {
     }
 }
 
-Err ControlFlowGraph::Build(disassembler::Disassembly *disas,
-                            LIEF::PE::Binary *bin,
+ControlFlowGraph::ControlFlowGraph() = default;
+Err ControlFlowGraph::Build(disassembler::Disassembly *disas, BinInfo *bin,
                             const std::vector<u64> &targets) {
     Err err{};
 
@@ -159,12 +157,12 @@ u64 GetNextNodeAddress(u64 addr, disassembler::Disassembly *disas) {
 
 CFGNode *ControlFlowGraph::AddNode(CFGNode *node,
                                    disassembler::Disassembly *disas,
-                                   LIEF::PE::Binary *bin) {
+                                   BinInfo *bin) {
     // Processes a node and returns pointer to the next node to process
     auto it = disas->instr_map.lower_bound(node->block.address);
     for (const auto &[addr, instr] :
          std::ranges::subrange(it, disas->instr_map.end())) {
-        if (IsDelimiter(instr->id) || !parser::IsCode(bin, addr)) {
+        if (IsDelimiter(instr->id) || !bin->IsCode(addr)) {
             break;
         }
     }
@@ -235,12 +233,12 @@ CFGNode *ControlFlowGraph::AddNode(CFGNode *node,
 }
 
 CFGNode *ControlFlowGraph::MakeFirstNode(disassembler::Disassembly *disas,
-                                         LIEF::PE::Binary *bin) {
+                                         BinInfo *bin) {
     auto node = std::make_unique<CFGNode>();
     for (u64 i = 0; i < disas->count; i++) {
         auto instruction = disas->instructions[i];
         node->block.address = instruction.address;
-        if (parser::IsCode(bin, instruction.address)) {
+        if (bin->IsCode(instruction.address)) {
             break;
         }
     }
@@ -250,10 +248,10 @@ CFGNode *ControlFlowGraph::MakeFirstNode(disassembler::Disassembly *disas,
 }
 
 void ControlFlowGraph::MapBaseBlocks(disassembler::Disassembly *disas,
-                                     LIEF::PE::Binary *bin) {
+                                     BinInfo *bin) {
     auto node = MakeFirstNode(disas, bin);
     while (node) {
-        node = AddNode(node, disas);
+        node = AddNode(node, disas, bin);
     }
 }
 }  // namespace core::static_analysis

@@ -40,15 +40,14 @@ Err AnalyzeImports(Target &target) {
     for (auto &[_, entries] : target.imports) {
         for (auto &entry : entries) {
             logger::Debug("%s", entry.display_name.c_str());
-            auto xrefs = static_analysis::parser::FindImportsXrefs(
-                target.lief_bin.get(), entry.address, &err);
+            auto xrefs = target.bin_info->FindImportsXrefs(entry.address, &err);
             if (err != Err::Ok) {
                 logger::Warn("Error searching for static xrefs to `%s`",
                              entry.display_name.c_str());
                 continue;
             }
 
-            for (const auto &xref : xrefs) {
+            for (const auto xref : xrefs) {
                 entry.xrefs.push_back(xref);
             }
         }
@@ -119,12 +118,7 @@ Err DoIATXrefsSearch(Target &target) {
         logger::Debug("ParseOffsetPtr: 0x%x", offset);
         u64 call_addr = call_instr.address + call_instr.size + offset;
         logger::Debug("Target address: 0x%x", call_addr);
-        auto section = target.lief_bin->section_from_rva(call_addr);
-        if (!section) {
-            logger::Warn("Failed to get section at 0x%x", call_addr);
-            continue;
-        }
-        if (section->name() != ".rdata") {
+        if (!target.bin_info->AddressInSection(call_addr, ".rdata")) {
             continue;
         }
         for (auto &[_, funcs] : target.imports) {
@@ -135,7 +129,7 @@ Err DoIATXrefsSearch(Target &target) {
                         logger::Okay(
                             "Found call to %s at 0x%x",
                             func.display_name.c_str(),
-                            call_instr.address + target.lief_bin->imagebase());
+                            call_instr.address + target.bin_info->ImageBase());
                     }
                 }
             }
@@ -170,10 +164,10 @@ void Run() {
                           target.display_name.c_str());
             continue;
         }
-        auto text = target.lief_bin->get_content_from_virtual_address(
-            target.text.address, target.text.size);
+        auto text =
+            target.bin_info->Data(target.text.address, target.text.size);
 
-        err = target.disassembly.Disassemble(text.data(), target.text.size);
+        err = target.disassembly.Disassemble(text, target.text.size);
         if (err != Err::Ok) {
             logger::Error(".text disassembly failed for `%s`",
                           target.display_name.c_str());
@@ -196,8 +190,7 @@ void Run() {
                 }
                 bool found = false;
                 for (const auto xref : func.xrefs) {
-                    if (target.lief_bin->section_from_rva(xref)->name() !=
-                        ".text")
+                    if (!target.bin_info->AddressInSection(xref, ".text"))
                         continue;
                     found = true;
                 }
@@ -209,7 +202,7 @@ void Run() {
             }
         }
 
-        err = target.cfg.Build(&target.disassembly, target.lief_bin.get(),
+        err = target.cfg.Build(&target.disassembly, target.bin_info.get(),
                                cf_targets);
         if (err != Err::Ok) {
             logger::Error("Static control flow analysis failed for `%s`",
