@@ -122,11 +122,29 @@ Err ControlFlowGraph::Build(disassembler::Disassembly *disas, BinInfo *bin,
                             const std::vector<u64> &targets) {
     Err err{};
 
-    logger::Debug("Building control flow graph");
+    logger::Info("Building control flow graph");
     logger::Debug("Using %d target addresses", targets.size());
     logger::Debug("Mapping base blocks...");
 
     MapBaseBlocks(disas, bin);
+
+    for (const auto &target : targets) {
+        if (FindNode(target)) {
+            logger::Okay("Found path to target 0x%x", target);
+        }
+    }
+
+    logger::Debug("Checking graph");
+
+    for (const auto &[addr, node] : nodes) {
+        if (node->returns && node->callers.empty()) {
+            logger::Warn("Node 0x%x returns but is never called", addr);
+        }
+    }
+
+    logger::Okay("Control flow graph build finished");
+    logger::Info("%d Nodes found", nodes.size());
+    logger::Info("%d Fake nodes found", 0xFFF - fake_node_counter);
 
     return err;
 }
@@ -134,6 +152,16 @@ Err ControlFlowGraph::Build(disassembler::Disassembly *disas, BinInfo *bin,
 CFGNode *ControlFlowGraph::FindNode(u64 address) const {
     auto it = nodes.find(address);
     return (it != nodes.end()) ? it->second.get() : nullptr;
+}
+
+CFGNode *ControlFlowGraph::FindNodeContaining(u64 address) const {
+    for (const auto &[addr, node] : nodes) {
+        if (addr <= address && address < addr + node->block.size) {
+            return node.get();
+        }
+    }
+
+    return nullptr;
 }
 
 void ControlFlowGraph::AddEdge(CFGNode *from, CFGNode *to, CFGEdgeType type) {
@@ -149,7 +177,8 @@ void ControlFlowGraph::AddEdge(CFGNode *from, CFGNode *to, CFGEdgeType type) {
     });
 }
 
-u64 GetNextNodeAddress(u64 addr, disassembler::Disassembly *disas) {
+u64 GetNextNodeAddress(u64 addr, disassembler::Disassembly *disas,
+                       BinInfo *bin) {
     u64 i = 0;
     for (; i < disas->count && disas->instructions[i].address != addr; i++);
     auto instr = &disas->instructions[i];
@@ -158,10 +187,10 @@ u64 GetNextNodeAddress(u64 addr, disassembler::Disassembly *disas) {
 
     switch (type) {
         case CFGEdgeType::Jmp:
-            return disassembler::GetJmpAddress(instr);
+            return disassembler::GetJmpAddress(instr, bin);
         case CFGEdgeType::Jcc:
         case CFGEdgeType::Call:
-            return disassembler::GetCallAddress(instr);
+            return disassembler::GetCallAddress(instr, bin);
         case CFGEdgeType::Ret:
         case CFGEdgeType::Int:
         case CFGEdgeType::Invalid:
@@ -221,7 +250,7 @@ CFGNode *ControlFlowGraph::AddNode(CFGNode *node,
 
     CFGEdgeType type = GetEdgeType(last_instr->id);
 
-    u64 new_address = GetNextNodeAddress(last_addr, disas);
+    u64 new_address = GetNextNodeAddress(last_addr, disas, bin);
     if (new_address == 0 && type != CFGEdgeType::Ret) {
         if (type == CFGEdgeType::Call) {
             auto tmp = InsertFakeNode();
@@ -317,9 +346,7 @@ CFGNode *ControlFlowGraph::AddNode(CFGNode *node,
             logger::Debug("Block 0x%x returns", node->block.address);
             for (auto caller : node->callers) {
                 logger::Debug("Caller 0x%x", caller->block.address);
-                logger::Debug("%d", caller->in_edges.size());
                 AddEdge(node, caller, type);
-                logger::Debug("%d", caller->in_edges.size());
             }
             return nullptr;
             break;

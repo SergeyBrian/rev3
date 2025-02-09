@@ -56,6 +56,19 @@ Err ParseBinary(Target &target) {
         }
     }
 
+    if (result->has_delay_imports()) {
+        logger::Info("Reading delayed imports");
+        auto delayed_imports = result->delay_imports();
+        for (const auto &lib : delayed_imports) {
+            for (const auto &entry : lib.entries()) {
+                target.imports[lib.name()].push_back(Function{
+                    .address = entry.hint_name_rva(),
+                    .display_name = entry.name(),
+                });
+            }
+        }
+    }
+
     logger::Debug("Searching for interesting imports");
     auto interests = config::Get().static_analysis.interesting_functions;
     for (auto &[lib_name, entries] : target.imports) {

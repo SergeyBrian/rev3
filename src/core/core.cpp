@@ -157,6 +157,7 @@ void Run() {
         static_analysis::parser::ParseBinary(target);
         if (config::Get().static_analysis.do_imports_print) {
             output::PrintImports(target);
+            continue;
         }
         Err err = AnalyzeImports(target);
         if (err != Err::Ok) {
@@ -193,6 +194,8 @@ void Run() {
                     if (!target.bin_info->AddressInSection(xref, ".text"))
                         continue;
                     found = true;
+                    cf_targets.push_back(xref);
+                    logger::Debug("Reference in .text: 0x%x", xref);
                 }
                 if (!found) {
                     logger::Warn("Skipping `%s`. No direct references found",
@@ -201,7 +204,6 @@ void Run() {
                 } else {
                     logger::Okay("Adding `%s`", func.display_name.c_str());
                 }
-                cf_targets.push_back(func.address);
             }
         }
 

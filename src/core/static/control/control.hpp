@@ -54,6 +54,8 @@ struct ControlFlowGraph {
 
     CFGNode *FindNode(u64 address) const;
 
+    CFGNode *FindNodeContaining(u64 address) const;
+
     ControlFlowGraph();
 
     Err Build(disassembler::Disassembly *disas, BinInfo *bin,

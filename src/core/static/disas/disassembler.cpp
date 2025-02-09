@@ -10,7 +10,7 @@
 #include <capstone/capstone.h>
 
 namespace core::static_analysis::disassembler {
-static const u64 MaxRegSearchOffset = 4;
+static const u64 MaxRegSearchOffset = 10;
 
 Err Disassembly::Disassemble(const byte *ptr, usize size) {
     Err err{};
@@ -86,7 +86,32 @@ u64 FindRegValue(x86_reg reg, const cs_insn *instr) {
     return 0;
 }
 
-u64 GetJmpAddress(const cs_insn *instr) {
+u64 SolveMemValue(const cs_insn *instr, BinInfo *bin) {
+    auto op = instr->detail->x86.operands[0];
+    auto reg = op.mem.base;
+    auto offset = op.mem.disp;
+
+    u64 reg_val{};
+
+    if (reg == X86_REG_RIP) {
+        reg_val = instr->address + instr->size;
+    } else {
+        reg_val = FindRegValue(reg, instr);
+    }
+    if (!reg_val) return 0;
+
+    u64 mem_addr = reg_val + offset;
+
+    const u8 *mem = bin->Data(mem_addr, 8);
+    if (!mem) {
+        logger::Warn("Failed to read memory at 0x%x", mem_addr);
+        return 0;
+    }
+    logger::Okay("Found address in memory: 0x%x", mem);
+    return *reinterpret_cast<const u64 *>(mem);
+}
+
+u64 GetJmpAddress(const cs_insn *instr, BinInfo *bin) {
     auto op = instr->detail->x86.operands[0];
     switch (op.type) {
         case X86_OP_INVALID:
@@ -99,14 +124,13 @@ u64 GetJmpAddress(const cs_insn *instr) {
         case X86_OP_IMM:
             return op.imm;
         case X86_OP_MEM:
-            logger::Warn("Mem-based jmp not supported");
-            return 0;
+            return SolveMemValue(instr, bin);
         default:
             return 0;
     }
 }
 
-u64 GetCallAddress(const cs_insn *instr) {
+u64 GetCallAddress(const cs_insn *instr, BinInfo *bin) {
     auto op = instr->detail->x86.operands[0];
     switch (op.type) {
         case X86_OP_INVALID:
@@ -119,8 +143,7 @@ u64 GetCallAddress(const cs_insn *instr) {
         case X86_OP_IMM:
             return op.imm;
         case X86_OP_MEM:
-            logger::Warn("Mem-based call not supported");
-            return 0;
+            return SolveMemValue(instr, bin);
         default:
             return 0;
     }

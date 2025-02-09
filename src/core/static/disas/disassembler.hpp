@@ -4,6 +4,8 @@
 #include <capstone/capstone.h>
 #include <map>
 
+#include "../../bin.hpp"
+
 #include "../../../utils/alias.hpp"
 #include "../../../utils/errors.hpp"
 
@@ -24,8 +26,8 @@ private:
 
 void Print(const cs_insn *instr, u64 count = 1);
 i64 ParseOffsetPtr(const char *opstr);
-u64 GetJmpAddress(const cs_insn *instr);
-u64 GetCallAddress(const cs_insn *instr);
+u64 GetJmpAddress(const cs_insn *instr, BinInfo *bin);
+u64 GetCallAddress(const cs_insn *instr, BinInfo *bin);
 }  // namespace core::static_analysis::disassembler
 
 #endif
