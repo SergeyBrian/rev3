@@ -50,7 +50,7 @@ struct EdgeTemplate {
 };
 
 struct ControlFlowGraph {
-    std::unordered_map<u64, std::unique_ptr<CFGNode>> nodes;
+    std::map<u64, std::unique_ptr<CFGNode>> nodes;
 
     CFGNode *FindNode(u64 address) const;
 
@@ -70,10 +70,13 @@ struct ControlFlowGraph {
         std::vector<EdgeTemplate> edges);
 
 private:
+    u64 fake_node_counter = 0x1000 - 1;
+
     void AddEdge(CFGNode *from, CFGNode *to, CFGEdgeType type);
     CFGNode *AddNode(CFGNode *node, disassembler::Disassembly *disas,
                      BinInfo *bin);
     CFGNode *MakeFirstNode(disassembler::Disassembly *disas, BinInfo *bin);
+    CFGNode *InsertFakeNode();
     void MapBaseBlocks(disassembler::Disassembly *disas, BinInfo *bin);
 };
 }  // namespace core::static_analysis

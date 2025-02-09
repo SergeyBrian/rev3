@@ -195,8 +195,11 @@ void Run() {
                     found = true;
                 }
                 if (!found) {
-                    logger::Warn("Skipping `%s`. No direct references found");
+                    logger::Warn("Skipping `%s`. No direct references found",
+                                 func.display_name.c_str());
                     continue;
+                } else {
+                    logger::Okay("Adding `%s`", func.display_name.c_str());
                 }
                 cf_targets.push_back(func.address);
             }

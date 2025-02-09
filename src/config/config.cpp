@@ -144,7 +144,9 @@ void InitFromArgs(int argc, char **argv) {
 
         config.verbose_logs =
             result["verbose"].as<bool>() && !result.count("quiet");
-        config.static_analysis.sink_target = result["sink"].as<std::string>();
+        if (result.count("sink"))
+            config.static_analysis.sink_target =
+                result["sink"].as<std::string>();
         config.static_analysis.do_imports_print = result["imports"].as<bool>();
         config.static_analysis.do_poi_disas_print =
             result["print-poi-disas"].as<bool>();

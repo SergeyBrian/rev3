@@ -600,3 +600,46 @@ TEST(CFGTest, TestChainedCalls) {
     ASSERT_NE(expected, nullptr);
     DoCfgTest(expected.get(), code, sizeof(code));
 }
+
+TEST(CFGTest, TestBadCall) {
+    const u8 code[] = {
+        /*
+        0:  48 c7 c0 01 00 00 00    mov    rax,0x1
+        7:  ff 90 ff 00 00 00       call   QWORD PTR [rax+0xff]
+        d:  48 c7 c0 02 00 00 00    mov    rax,0x2
+        */
+        0x48, 0xC7, 0xC0, 0x01, 0x00, 0x00, 0x00, 0xFF, 0x90, 0xFF,
+        0x00, 0x00, 0x00, 0x48, 0xC7, 0xC0, 0x02, 0x00, 0x00, 0x00,
+    };
+
+    auto expected = ControlFlowGraph::MakeCFG(
+        {
+            {
+                .address = 0x1000,
+                .size = 7 + 6,
+            },
+            {
+                .address = 0x1000 + 7 + 6,
+                .size = 7,
+            },
+            {
+                .address = 0x1000 - 1,
+                .size = 0,
+            },
+        },
+        {
+            {
+                .from = 0x1000,
+                .to = 0x1000 - 1,
+                .type = CFGEdgeType::Call,
+            },
+            {
+                .from = 0x1000 - 1,
+                .to = 0x1000,
+                .type = CFGEdgeType::Ret,
+            },
+        });
+
+    ASSERT_NE(expected, nullptr);
+    DoCfgTest(expected.get(), code, sizeof(code));
+}

@@ -170,6 +170,21 @@ u64 GetNextNodeAddress(u64 addr, disassembler::Disassembly *disas) {
     }
 }
 
+CFGNode *ControlFlowGraph::InsertFakeNode() {
+    if (fake_node_counter == 0) {
+        logger::Error("Too many unknown nodes.");
+        return nullptr;
+    }
+
+    u64 fake_address = fake_node_counter--;
+    auto node = std::make_unique<CFGNode>();
+    node->block.address = fake_address;
+    node->returns = true;
+    nodes[fake_address] = std::move(node);
+
+    return nodes[fake_address].get();
+}
+
 CFGNode *ControlFlowGraph::AddNode(CFGNode *node,
                                    disassembler::Disassembly *disas,
                                    BinInfo *bin) {
@@ -207,8 +222,17 @@ CFGNode *ControlFlowGraph::AddNode(CFGNode *node,
     CFGEdgeType type = GetEdgeType(last_instr->id);
 
     u64 new_address = GetNextNodeAddress(last_addr, disas);
-    if (new_address == 0 && type != CFGEdgeType::Ret) return nullptr;
-    logger::Okay("Found next node address: 0x%x", new_address);
+    if (new_address == 0 && type != CFGEdgeType::Ret) {
+        if (type == CFGEdgeType::Call) {
+            auto tmp = InsertFakeNode();
+            if (!tmp) return nullptr;
+            new_address = tmp->block.address;
+        } else {
+            return nullptr;
+        }
+    } else {
+        logger::Okay("Found next node address: 0x%x", new_address);
+    }
 
     CFGNode *new_node_ptr{};
     bool target_exists = false;
@@ -258,6 +282,9 @@ CFGNode *ControlFlowGraph::AddNode(CFGNode *node,
         } break;
         case CFGEdgeType::Call: {
             AddEdge(node, new_node_ptr, type);
+            // If a new call is found to a node that is already pared and marked
+            // as returning, we need to build returning edges from it to current
+            // node
             if (new_node_ptr->returns) {
                 logger::Debug("Found call to returning node");
                 AddEdge(new_node_ptr, node, CFGEdgeType::Ret);
