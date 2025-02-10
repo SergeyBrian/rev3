@@ -105,7 +105,7 @@ void InitFromArgs(int argc, char **argv) {
         ("q,quiet", "Disable verbose output", cxxopts::value<bool>())
         ("s,sink", "Set target sink name, if not set, will search for all potential sinks", cxxopts::value<std::string>())
         ("i,imports", "Print imports table", cxxopts::value<bool>()->default_value("false"))
-        ("interests-file", "Specify path to .json file with list of interesting symbols", cxxopts::value<std::string>()->default_value(utils::GetDefaultPath() + "\\interesting_imports.json"))
+        ("interests-file", "Specify path to .json file with list of interesting symbols", cxxopts::value<std::string>()->default_value(utils::GetDefaultPath() + "/interesting_imports.json"))
         ("c,categories",
          "Specify active interest categories (comma-separated, available values: "
          "privilege, services, crypto, process, gui, network, system, "

@@ -41,9 +41,18 @@ void Run() {
         active_nodes[config::Get().static_analysis.inspect_address] = true;
     }
 
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 2);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_ANY_PROFILE);
+
     glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
     glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER, GLFW_TRUE);
     glfwWindowHint(GLFW_DECORATED, GLFW_FALSE);
+    glfwWindowHint(GLFW_FLOATING, GLFW_TRUE);
+
+#if __APPLE__
+    glfwWindowHint(GLFW_SCALE_TO_MONITOR, GLFW_TRUE);
+#endif
 
     target = &core::GetActiveTarget();
     std::string win_name = "Rev3 GUI - " + target->display_name;
@@ -58,6 +67,15 @@ void Run() {
 
     glfwMaximizeWindow(window);
     glfwMakeContextCurrent(window);
+    glfwFocusWindow(window);
+    glfwSetInputMode(window, GLFW_STICKY_KEYS, GLFW_TRUE);
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+
+#if __APPLE__
+    auto win_mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
+    glfwSetWindowSize(window, win_mode->width, win_mode->height);
+    glfwSetWindowPos(window, 0, 0);
+#endif
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -65,11 +83,23 @@ void Run() {
     (void)io;
 
     io.Fonts->Clear();
-    io.Fonts->AddFontFromFileTTF("./fonts/JetBrainsMono-Medium.ttf", 18.0f);
-    ImGui::GetIO().FontGlobalScale = 1.0f;
+#if __APPLE__
+    float font_size = 36.0f;
+    float gfont_size = .5f;
+#else
+    float font_size = 18.0f;
+    float gfont_size = 1.0f;
+#endif
+
+    io.Fonts->AddFontFromFileTTF("./fonts/JetBrainsMono-Medium.ttf", font_size);
+    ImGui::GetIO().FontGlobalScale = gfont_size;
 
     ImGui_ImplGlfw_InitForOpenGL(window, true);
+#if __APPLE__
+    ImGui_ImplOpenGL3_Init("#version 120");
+#else
     ImGui_ImplOpenGL3_Init("#version 130");
+#endif
 
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
