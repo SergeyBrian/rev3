@@ -33,6 +33,19 @@ Disassembly::Disassembly() {
         throw std::runtime_error("Failed to initialize capstone");
     }
 }
+std::string Disassembly::GetString(u64 addr, usize size) {
+    auto it = instr_map.lower_bound(addr);
+    if (size == 0) size += it->second->size;
+    std::stringstream ss;
+    for (; it != instr_map.end(); it = std::next(it)) {
+        const auto &[address, instr] = *it;
+        if (instr->address >= addr + size) break;
+        ss << std::hex << "0x" << address << "\t" << instr->mnemonic << " "
+           << instr->op_str << "\n";
+    }
+    return ss.str();
+}
+
 void Print(const cs_insn *instr, u64 count) {
     while (count--) {
         logger::Printf("0x%" PRIx64 ":\t%s\t\t%s", instr->address,

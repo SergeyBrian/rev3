@@ -635,7 +635,7 @@ TEST(CFGTest, TestBadCall) {
             },
             {
                 .from = 0x1000 - 1,
-                .to = 0x1000,
+                .to = 0x1000 + 7 + 6,
                 .type = CFGEdgeType::Ret,
             },
         });

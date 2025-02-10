@@ -43,11 +43,28 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(capstone)
 
 FetchContent_Declare(
-  googletest
-  URL https://github.com/google/googletest/archive/refs/tags/v1.16.0.zip
+    googletest
+    URL https://github.com/google/googletest/archive/refs/tags/v1.16.0.zip
 )
 
 FetchContent_MakeAvailable(googletest)
+
+FetchContent_Declare(
+    imgui
+    GIT_REPOSITORY https://github.com/ocornut/imgui.git
+    GIT_TAG v1.91.8
+)
+
+FetchContent_MakeAvailable(imgui)
+
+FetchContent_Declare(
+    glfw
+    GIT_REPOSITORY https://github.com/glfw/glfw.git
+    GIT_TAG 3.3.8
+)
+FetchContent_MakeAvailable(glfw)
+
+find_package(OpenGL REQUIRED)
 
 set(common
     src/utils/logger.hpp
@@ -59,6 +76,11 @@ set(common
     src/common/pre_checks.cpp
     src/utils/system.hpp
     src/utils/system.cpp
+)
+
+set(ui
+    src/ui/ui.hpp
+    src/ui/ui.cpp
 )
 
 set(core
@@ -80,16 +102,30 @@ set(core
     src/core/static/parser/lief_bin.cpp
 )
 
+set(imgui_source
+    ${imgui_SOURCE_DIR}/imgui.cpp
+    ${imgui_SOURCE_DIR}/imgui_draw.cpp
+    ${imgui_SOURCE_DIR}/imgui_widgets.cpp
+    ${imgui_SOURCE_DIR}/imgui_tables.cpp
+    ${imgui_SOURCE_DIR}/imgui_demo.cpp
+
+    ${imgui_SOURCE_DIR}/backends/imgui_impl_glfw.cpp
+    ${imgui_SOURCE_DIR}/backends/imgui_impl_opengl3.cpp
+)
+
 add_executable(${CMAKE_PROJECT_NAME} src/main.cpp
     ${common}
     ${core}
+    ${ui}
+    ${imgui_source}
 )
 
 set(libs
-cxxopts LIEF::LIEF nlohmann_json::nlohmann_json capstone
+cxxopts LIEF::LIEF nlohmann_json::nlohmann_json capstone glfw OpenGL::GL
 )
 
 target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE ${libs})
+target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE ${imgui_SOURCE_DIR})
 
 
 add_custom_target(copy_config ALL

@@ -217,4 +217,6 @@ void Run() {
     }
     logger::Okay("All done. Closing");
 }
+
+Target &GetActiveTarget() { return targets[0]; }
 }  // namespace core

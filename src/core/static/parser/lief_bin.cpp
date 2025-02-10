@@ -42,6 +42,10 @@ bool LiefBin::AddressInSection(u64 addr, const std::string &name) const {
     return section && section->name() == name;
 }
 
+std::string LiefBin::SectionFromRva(u64 addr) const {
+    return bin->section_from_rva(addr)->name();
+}
+
 u64 LiefBin::ImageBase() const { return bin->imagebase(); }
 
 const byte *LiefBin::Data(u64 addr, usize size) const {

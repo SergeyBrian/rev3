@@ -13,6 +13,7 @@ public:
     virtual std::vector<u64> FindImportsXrefs(u64 addr, Err *err) = 0;
     virtual bool IsCode(u64 addr) = 0;
     virtual bool AddressInSection(u64 addr, const std::string &name) const = 0;
+    virtual std::string SectionFromRva(u64 addr) const = 0;
     virtual u64 ImageBase() const = 0;
     virtual const byte *Data(u64 addr, usize size) const = 0;
 };

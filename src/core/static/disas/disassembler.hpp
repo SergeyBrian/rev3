@@ -17,6 +17,7 @@ struct Disassembly {
     usize count;
 
     Err Disassemble(const byte *ptr, usize size);
+    std::string GetString(u64 addr, usize size = 0);
 
     Disassembly();
 

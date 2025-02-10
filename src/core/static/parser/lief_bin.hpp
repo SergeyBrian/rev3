@@ -13,6 +13,7 @@ public:
     std::vector<u64> FindImportsXrefs(u64 addr, Err *err) override;
     bool IsCode(u64 addr) override;
     bool AddressInSection(u64 addr, const std::string &name) const override;
+    std::string SectionFromRva(u64 addr) const override;
     u64 ImageBase() const override;
     const byte *Data(u64 addr, usize size) const override;
 

@@ -2,7 +2,6 @@
 #define CORE_STATIC_CONTROL_HPP
 
 #include <vector>
-#include <unordered_map>
 #include <memory>
 
 #include "../disas/disassembler.hpp"
@@ -14,7 +13,7 @@
 namespace core::static_analysis {
 struct BaseBlock {
     u64 address;
-    usize size;
+    usize size{};
 };
 
 enum class CFGEdgeType : u8 {
@@ -25,6 +24,8 @@ enum class CFGEdgeType : u8 {
     Ret,
     Int,
 };
+
+std::string EdgeTypeStr(CFGEdgeType type);
 
 struct CFGNode;
 
@@ -42,6 +43,8 @@ struct CFGNode {
     std::vector<CFGNode *> callers;
 
     bool returns{};
+
+    ~CFGNode();
 };
 struct EdgeTemplate {
     u64 from;
@@ -73,12 +76,14 @@ struct ControlFlowGraph {
 
 private:
     u64 fake_node_counter = 0x1000 - 1;
+    std::map<u64, u64> fake_nodes;
 
     void AddEdge(CFGNode *from, CFGNode *to, CFGEdgeType type);
     CFGNode *AddNode(CFGNode *node, disassembler::Disassembly *disas,
                      BinInfo *bin);
     CFGNode *MakeFirstNode(disassembler::Disassembly *disas, BinInfo *bin);
-    CFGNode *InsertFakeNode();
+    CFGNode *InsertFakeNode(u64 real_address);
+    CFGNode *InsertNode(u64 address);
     void MapBaseBlocks(disassembler::Disassembly *disas, BinInfo *bin);
 };
 }  // namespace core::static_analysis

@@ -28,6 +28,7 @@ public:
     std::vector<std::string> input_files;
     bool verbose_logs;
     StaticAnalysisConfig static_analysis;
+    bool ui;
 
     Config(const Config &) = delete;
     Config &operator=(const Config &) = delete;

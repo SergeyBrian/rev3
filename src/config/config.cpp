@@ -114,6 +114,7 @@ void InitFromArgs(int argc, char **argv) {
         ("print-poi-disas", "Print disassembly of code around points of interest",
          cxxopts::value<bool>()->default_value("true"))
         ("inspect", "Address of interest", cxxopts::value<std::string>()->default_value("0x0"))
+        ("u,ui", "Enable GUI", cxxopts::value<bool>()->default_value("false"))
     ;
     // clang-format on
 
@@ -144,6 +145,7 @@ void InitFromArgs(int argc, char **argv) {
 
         config.verbose_logs =
             result["verbose"].as<bool>() && !result.count("quiet");
+        config.ui = result["ui"].as<bool>();
         if (result.count("sink"))
             config.static_analysis.sink_target =
                 result["sink"].as<std::string>();
