@@ -484,7 +484,9 @@ CFGNode *ControlFlowGraph::MakeFirstNode(disassembler::Disassembly *disas,
     u64 addr{};
     for (u64 i = 0; i < disas->count; i++) {
         auto instruction = disas->instructions[i];
+        if (instruction.address < bin->EntryPoint()) continue;
         addr = instruction.address;
+        logger::Debug("Making first node at 0x%llx", addr);
         node->block.address = addr;
         node->block.real_address = addr;
         if (bin->IsCode(addr)) {

@@ -13,6 +13,7 @@ enum class ErrorCode {
     TextSectionNotFound,
     DisassemblerError,
     NoXrefsFound,
+    ArchitectureMismatch,
     Count
 };
 
@@ -30,6 +31,7 @@ inline const char *ErrorText[static_cast<int>(ErrorCode::Count)] = {
     "No .text section found",
     "Disassembler failed",
     "No xrefs found",
+    "Wrong tool architecture",
 };
 
 #endif

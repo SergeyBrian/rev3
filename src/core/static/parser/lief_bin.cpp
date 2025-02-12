@@ -54,4 +54,6 @@ const byte *LiefBin::Data(u64 addr, usize size) const {
                                            std::min(size, bin->virtual_size()))
         .data();
 }
+
+u64 LiefBin::EntryPoint() const { return bin->entrypoint(); }
 }  // namespace core::static_analyis::parser

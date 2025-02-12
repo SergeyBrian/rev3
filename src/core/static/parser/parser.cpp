@@ -3,6 +3,7 @@
 #include <LIEF/LIEF.hpp>
 
 #include "../../../utils/logger.hpp"
+#include "LIEF/PE/enums.hpp"
 #include "lief_bin.hpp"
 
 namespace core::static_analysis::parser {
@@ -15,6 +16,18 @@ Err ParseBinary(Target &target) {
         logger::Error("Parsing error");
         return Err::ParsingError;
     }
+
+#ifdef X86_BUILD
+    if (result->type() == LIEF::PE::PE_TYPE::PE32_PLUS) {
+        logger::Error("Use rev3 for x64 binaries");
+        return Err::ArchitectureMismatch;
+    }
+#else
+    if (result->type() == LIEF::PE::PE_TYPE::PE32) {
+        logger::Error("Use rev3x32 for x32 binaries");
+        return Err::ArchitectureMismatch;
+    }
+#endif
 
     if (!result->has_exceptions()) {
         logger::Warn("No .pdata section found");

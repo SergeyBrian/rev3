@@ -9,6 +9,12 @@
 
 #include <capstone/capstone.h>
 
+#ifdef X86_BUILD
+#define ACTIVE_CS_MODE CS_MODE_32
+#else
+#define ACTIVE_CS_MODE CS_MODE_64
+#endif
+
 namespace core::static_analysis::disassembler {
 static const u64 MaxRegSearchOffset = 10;
 
@@ -29,7 +35,7 @@ Err Disassembly::Disassemble(const byte *ptr, usize size) {
 }
 
 Disassembly::Disassembly() {
-    if (cs_open(CS_ARCH_X86, CS_MODE_64, &handle) != CS_ERR_OK) {
+    if (cs_open(CS_ARCH_X86, ACTIVE_CS_MODE, &handle) != CS_ERR_OK) {
         throw std::runtime_error("Failed to initialize capstone");
     }
 }

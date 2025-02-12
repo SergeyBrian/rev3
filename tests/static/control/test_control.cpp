@@ -64,6 +64,7 @@ void DoCfgTest(ControlFlowGraph *expected, const u8 code[], usize size) {
     ::testing::NiceMock<MockBinInfo> bin;
     logger::Okay("Starting test");
     ON_CALL(bin, IsCode(testing::_)).WillByDefault(testing::Return(true));
+    ON_CALL(bin, EntryPoint()).WillByDefault(testing::Return(0x1000));
 
     core::static_analysis::disassembler::Disassembly disas;
     disas.Disassemble(code, size);

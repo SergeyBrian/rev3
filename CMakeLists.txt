@@ -132,12 +132,23 @@ add_executable(${CMAKE_PROJECT_NAME} src/main.cpp
     ${imgui_source}
 )
 
+add_executable(${CMAKE_PROJECT_NAME}x32 src/main.cpp
+    ${common}
+    ${core}
+    ${ui}
+    ${imgui_source}
+)
+
 set(libs
 cxxopts LIEF::LIEF nlohmann_json::nlohmann_json capstone glfw OpenGL::GL
 )
 
 target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE ${libs})
 target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE ${imgui_SOURCE_DIR} ${imnodes_SOURCE_DIR})
+
+target_link_libraries(${CMAKE_PROJECT_NAME}x32 PRIVATE ${libs})
+target_include_directories(${CMAKE_PROJECT_NAME}x32 PRIVATE ${imgui_SOURCE_DIR} ${imnodes_SOURCE_DIR})
+target_compile_definitions(${CMAKE_PROJECT_NAME}x32 PRIVATE X86_BUILD)
 
 add_compile_definitions(IMGUI_ENABLE_DOCKING IMGUI_DEFINE_MATH_OPERATORS)
 

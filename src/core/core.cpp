@@ -67,10 +67,18 @@ Err DoIATXrefsSearch(Target &target) {
         auto instr = target.disassembly.instructions[i];
         u64 offset = (i >= 4) ? i - 4 : 0;
 
-        if ((!strcmp(prev_instr.mnemonic, "lea") ||
-             !strcmp(prev_instr.mnemonic, "mov")) &&
-            !strcmp(instr.mnemonic, "call") && strstr(instr.op_str, "qword") &&
-            strstr(instr.op_str, "[rip")) {
+        if (strstr(instr.mnemonic, "call"))
+            logger::Debug("+ call %s %s", instr.mnemonic, instr.op_str);
+        if (((!strcmp(prev_instr.mnemonic, "lea") ||
+              !strcmp(prev_instr.mnemonic, "mov")) &&
+             (instr.id == X86_INS_CALL || instr.id == X86_INS_LCALL) &&
+             strstr(instr.op_str, "qword") &&
+             (strstr(instr.op_str, "[rip") || strstr(instr.op_str, "[eip"))) ||
+            ((instr.id == X86_INS_CALL || instr.id == X86_INS_LCALL) &&
+             instr.detail->x86.operands[0].type == X86_OP_IMM) ||
+            ((instr.id == X86_INS_CALL || instr.id == X86_INS_LCALL) &&
+             instr.detail->x86.operands[0].type == X86_OP_MEM &&
+             instr.detail->x86.operands[0].mem.segment == X86_REG_DS)) {
             calls.push_back(i);
 
             logger::Okay("[%d] Found call at 0x%x", i, instr.address);
@@ -86,37 +94,52 @@ Err DoIATXrefsSearch(Target &target) {
         idx++;
         auto mov_instr = target.disassembly.instructions[i - 1];
         auto call_instr = target.disassembly.instructions[i];
+        u64 call_addr{};
 
-        if ((call_instr.address & 0xfffff) ==
-                config::Get().static_analysis.inspect_address ||
-            (mov_instr.address & 0xfffff) ==
-                config::Get().static_analysis.inspect_address) {
-            logger::Okay("[%d/%d]: 0x%x", idx, calls.size(), mov_instr.address);
+        if (call_instr.detail->x86.operands[0].type == X86_OP_IMM) {
+            logger::Debug("immediate call found");
+            call_addr = call_instr.detail->x86.operands[0].imm;
+        } else if (call_instr.detail->x86.operands[0].type == X86_OP_MEM &&
+                   call_instr.detail->x86.operands[0].mem.segment ==
+                       X86_REG_DS) {
+            auto mem = call_instr.detail->x86.operands[0].mem;
+            logger::Debug("call to data degment found");
+            call_addr = mem.base + mem.disp;
         } else {
-            logger::Debug("[%d/%d]: 0x%x", idx, calls.size(),
-                          mov_instr.address);
-        }
+            if ((call_instr.address & 0xfffff) ==
+                    config::Get().static_analysis.inspect_address ||
+                (mov_instr.address & 0xfffff) ==
+                    config::Get().static_analysis.inspect_address) {
+                logger::Okay("[%d/%d]: 0x%x", idx, calls.size(),
+                             mov_instr.address);
+            } else {
+                logger::Debug("[%d/%d]: 0x%x", idx, calls.size(),
+                              mov_instr.address);
+            }
 
-        logger::log << "Context: \n" << COLOR_GRAY;
-        for (u64 i = 0; i < 8; i++) {
-            logger::log << "" << std::hex << std::uppercase << std::setfill('0')
-                        << std::setw(2) << static_cast<int>(mov_instr.bytes[i])
-                        << " ";
-        }
-        logger::log << "\t" << mov_instr.mnemonic << " " << mov_instr.op_str;
-        logger::log << "\n";
-        for (u64 i = 0; i < 8; i++) {
-            logger::log << "" << std::hex << std::uppercase << std::setfill('0')
-                        << std::setw(2) << static_cast<int>(call_instr.bytes[i])
-                        << " ";
-        }
-        logger::log << "\t" << call_instr.mnemonic << " " << call_instr.op_str;
-        logger::log << "\n" << COLOR_RESET;
+            logger::log << "Context: \n" << COLOR_GRAY;
+            for (u64 i = 0; i < 8; i++) {
+                logger::log << "" << std::hex << std::uppercase
+                            << std::setfill('0') << std::setw(2)
+                            << static_cast<int>(mov_instr.bytes[i]) << " ";
+            }
+            logger::log << "\t" << mov_instr.mnemonic << " "
+                        << mov_instr.op_str;
+            logger::log << "\n";
+            for (u64 i = 0; i < 8; i++) {
+                logger::log << "" << std::hex << std::uppercase
+                            << std::setfill('0') << std::setw(2)
+                            << static_cast<int>(call_instr.bytes[i]) << " ";
+            }
+            logger::log << "\t" << call_instr.mnemonic << " "
+                        << call_instr.op_str;
+            logger::log << "\n" << COLOR_RESET;
 
-        i64 offset =
-            static_analysis::disassembler::ParseOffsetPtr(call_instr.op_str);
-        logger::Debug("ParseOffsetPtr: 0x%x", offset);
-        u64 call_addr = call_instr.address + call_instr.size + offset;
+            i64 offset = static_analysis::disassembler::ParseOffsetPtr(
+                call_instr.op_str);
+            logger::Debug("ParseOffsetPtr: 0x%x", offset);
+            call_addr = call_instr.address + call_instr.size + offset;
+        }
         logger::Debug("Target address: 0x%x", call_addr);
         if (!target.bin_info->AddressInSection(call_addr, ".rdata")) {
             continue;
@@ -154,12 +177,18 @@ void Run() {
     }
 
     for (auto &target : targets) {
-        static_analysis::parser::ParseBinary(target);
+        Err err = static_analysis::parser::ParseBinary(target);
+        if (err != Err::Ok) {
+            logger::Error("Parser failed for `%s`",
+                          target.display_name.c_str());
+            continue;
+        }
+
         if (config::Get().static_analysis.do_imports_print) {
             output::PrintImports(target);
             continue;
         }
-        Err err = AnalyzeImports(target);
+        err = AnalyzeImports(target);
         if (err != Err::Ok) {
             logger::Error("Imports analysis failed for `%s`",
                           target.display_name.c_str());
@@ -216,6 +245,12 @@ void Run() {
             logger::Error("Static control flow analysis failed for `%s`",
                           target.display_name.c_str());
             continue;
+        }
+
+        if (target.cfg.nodes.size() <= 1) {
+            logger::Error(
+                "Something went wrong during build of control flow graph");
+            std::cout << target.disassembly.GetString(0, usize_max);
         }
     }
     logger::Okay("All done. Closing");
