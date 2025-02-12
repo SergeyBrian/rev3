@@ -51,6 +51,7 @@ struct Target {
     std::string display_name;
     std::map<std::string, std::vector<Function>> imports;
     std::vector<Section> sections;
+    std::map<u64, Function *> functions;
 
     Section text;
 
@@ -59,7 +60,13 @@ struct Target {
     static_analysis::disassembler::Disassembly disassembly;
     static_analysis::ControlFlowGraph cfg;
 
+    std::string GetFunctionNameByAddress(u64 address);
+    std::string GetEnrichedDisassembly(u64 address = 0, usize size = 0);
+
     explicit Target(const std::string &filename);
+
+private:
+    void MapFunctions();
 };
 }  // namespace core
 

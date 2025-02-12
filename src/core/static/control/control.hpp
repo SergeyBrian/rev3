@@ -38,6 +38,7 @@ struct CFGEdge {
 
 struct CFGNode {
     BaseBlock block{};
+    std::string label;
 
     std::vector<CFGEdge> out_edges;
     std::vector<CFGEdge> in_edges;
@@ -63,7 +64,8 @@ struct ControlFlowGraph {
     ControlFlowGraph();
 
     Err Build(disassembler::Disassembly *disas, BinInfo *bin,
-              const std::vector<u64> &targets);
+              const std::vector<u64> &targets = {},
+              const std::vector<std::string> labels = {});
 
     ControlFlowGraph(const ControlFlowGraph &) = delete;
     ControlFlowGraph &operator=(const ControlFlowGraph &) = delete;

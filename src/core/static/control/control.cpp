@@ -154,7 +154,8 @@ void Deduplicate(std::vector<CFGEdge> &edges) {
 
 ControlFlowGraph::ControlFlowGraph() = default;
 Err ControlFlowGraph::Build(disassembler::Disassembly *disas, BinInfo *bin,
-                            const std::vector<u64> &targets) {
+                            const std::vector<u64> &targets,
+                            const std::vector<std::string> labels) {
     Err err{};
 
     logger::Info("Building control flow graph");
@@ -163,9 +164,12 @@ Err ControlFlowGraph::Build(disassembler::Disassembly *disas, BinInfo *bin,
 
     MapBaseBlocks(disas, bin);
 
-    for (const auto &target : targets) {
-        if (FindNodeContaining(target)) {
-            logger::Okay("Found path to target 0x%x", target);
+    for (u64 i = 0; i < targets.size(); i++) {
+        auto node = FindNodeContaining(targets[i]);
+        if (node) {
+            logger::Okay("Found path to target 0x%x (%s)", targets[i],
+                         labels[i].c_str());
+            node->label = labels[i];
         }
     }
 

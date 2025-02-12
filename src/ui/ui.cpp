@@ -143,7 +143,8 @@ void DrawNodes() {
         nodes_map[addr] = unique_id;
         ImNodes::BeginNode(unique_id++);
         ImNodes::BeginNodeTitleBar();
-        ImGui::Text("Node 0x%llx", addr);
+        ImGui::Text("Node 0x%llx%s", addr,
+                    (node->label.empty()) ? "" : (" @ " + node->label).c_str());
         ImNodes::EndNodeTitleBar();
         ImNodes::BeginInputAttribute(unique_id++);
         ImNodes::EndInputAttribute();

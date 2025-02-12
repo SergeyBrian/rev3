@@ -182,6 +182,8 @@ void Run() {
         }
 
         std::vector<u64> cf_targets{};
+        std::vector<std::string> cf_target_labels{};
+
         for (const auto &[_, funcs] : target.imports) {
             for (const auto &func : funcs) {
                 if (!config::Get().static_analysis.sink_target.empty() &&
@@ -195,6 +197,7 @@ void Run() {
                         continue;
                     found = true;
                     cf_targets.push_back(xref);
+                    cf_target_labels.push_back(func.display_name);
                     logger::Debug("Reference in .text: 0x%x", xref);
                 }
                 if (!found) {
@@ -208,7 +211,7 @@ void Run() {
         }
 
         err = target.cfg.Build(&target.disassembly, target.bin_info.get(),
-                               cf_targets);
+                               cf_targets, cf_target_labels);
         if (err != Err::Ok) {
             logger::Error("Static control flow analysis failed for `%s`",
                           target.display_name.c_str());
