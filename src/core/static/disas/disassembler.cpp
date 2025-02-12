@@ -48,7 +48,7 @@ std::string Disassembly::GetString(u64 addr, usize size) {
     if (strings_cache.contains(addr) && strings_cache[addr].contains(size)) {
         return strings_cache.at(addr).at(size);
     }
-    logger::Debug("Disas string cache miss 0x%x (%d)", addr, size);
+    logger::Debug("Disas string cache miss 0x%llx (%d)", addr, size);
 
     std::stringstream ss;
     for (; it != instr_map.end(); it = std::next(it)) {
@@ -132,10 +132,10 @@ u64 SolveMemValue(const cs_insn *instr, BinInfo *bin) {
 
     const u8 *mem = bin->Data(mem_addr, 8);
     if (!mem) {
-        logger::Warn("Failed to read memory at 0x%x", mem_addr);
+        logger::Warn("Failed to read memory at 0x%llx", mem_addr);
         return 0;
     }
-    logger::Okay("Found address in memory: 0x%x", mem);
+    logger::Okay("Found address in memory: 0x%llx", mem);
     return *reinterpret_cast<const u64 *>(mem);
 }
 

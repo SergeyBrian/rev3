@@ -21,6 +21,7 @@ struct StaticAnalysisConfig {
     std::vector<InterestingFunction> interesting_functions;
     std::vector<std::string> active_categories;
     u64 inspect_address;
+    bool do_executable_check;
 };
 
 class Config {

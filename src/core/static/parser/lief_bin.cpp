@@ -9,12 +9,13 @@ LiefBin::LiefBin(std::unique_ptr<LIEF::PE::Binary> lief_bin)
 std::vector<u64> LiefBin::FindImportsXrefs(u64 addr, Err *err) {
     auto res = bin->xref(addr);
     for (const auto &xref : res) {
-        logger::Debug("\t0x%x -> ...", xref);
+        logger::Debug("\t0x%llx -> ...", xref);
     }
     return res;
 }
 
 bool LiefBin::IsCode(u64 addr) {
+    if (!config::Get().static_analysis.do_executable_check) return true;
     if (!bin->has_relocations() && !bin->has_exceptions()) {
         logger::Warn("Can't verify that code is executable");
         return true;
@@ -55,5 +56,5 @@ const byte *LiefBin::Data(u64 addr, usize size) const {
         .data();
 }
 
-u64 LiefBin::EntryPoint() const { return bin->entrypoint(); }
+u64 LiefBin::EntryPoint() const { return bin->entrypoint() - bin->imagebase(); }
 }  // namespace core::static_analyis::parser

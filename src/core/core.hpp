@@ -7,7 +7,7 @@
 namespace core {
 Err Init();
 void Run();
-Target &GetActiveTarget();
+Target *GetActiveTarget();
 }  // namespace core
 
 #endif

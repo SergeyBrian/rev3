@@ -81,7 +81,7 @@ Err DoIATXrefsSearch(Target &target) {
              instr.detail->x86.operands[0].mem.segment == X86_REG_DS)) {
             calls.push_back(i);
 
-            logger::Okay("[%d] Found call at 0x%x", i, instr.address);
+            logger::Okay("[%d] Found call at 0x%llx", i, instr.address);
             logger::log << "Context: \n";
             static_analysis::disassembler::Print(
                 &target.disassembly.instructions[offset], 5);
@@ -110,10 +110,10 @@ Err DoIATXrefsSearch(Target &target) {
                     config::Get().static_analysis.inspect_address ||
                 (mov_instr.address & 0xfffff) ==
                     config::Get().static_analysis.inspect_address) {
-                logger::Okay("[%d/%d]: 0x%x", idx, calls.size(),
+                logger::Okay("[%d/%d]: 0x%llx", idx, calls.size(),
                              mov_instr.address);
             } else {
-                logger::Debug("[%d/%d]: 0x%x", idx, calls.size(),
+                logger::Debug("[%d/%d]: 0x%llx", idx, calls.size(),
                               mov_instr.address);
             }
 
@@ -137,10 +137,10 @@ Err DoIATXrefsSearch(Target &target) {
 
             i64 offset = static_analysis::disassembler::ParseOffsetPtr(
                 call_instr.op_str);
-            logger::Debug("ParseOffsetPtr: 0x%x", offset);
+            logger::Debug("ParseOffsetPtr: 0x%llx", offset);
             call_addr = call_instr.address + call_instr.size + offset;
         }
-        logger::Debug("Target address: 0x%x", call_addr);
+        logger::Debug("Target address: 0x%llx", call_addr);
         if (!target.bin_info->AddressInSection(call_addr, ".rdata")) {
             continue;
         }
@@ -150,7 +150,7 @@ Err DoIATXrefsSearch(Target &target) {
                     if (xref == call_addr) {
                         func.xrefs.push_back(call_instr.address);
                         logger::Okay(
-                            "Found call to %s at 0x%x",
+                            "Found call to %s at 0x%llx",
                             func.display_name.c_str(),
                             call_instr.address + target.bin_info->ImageBase());
                     }
@@ -227,7 +227,7 @@ void Run() {
                     found = true;
                     cf_targets.push_back(xref);
                     cf_target_labels.push_back(func.display_name);
-                    logger::Debug("Reference in .text: 0x%x", xref);
+                    logger::Debug("Reference in .text: 0x%llx", xref);
                 }
                 if (!found) {
                     logger::Warn("Skipping `%s`. No direct references found",
@@ -250,11 +250,18 @@ void Run() {
         if (target.cfg.nodes.size() <= 1) {
             logger::Error(
                 "Something went wrong during build of control flow graph");
-            std::cout << target.disassembly.GetString(0, usize_max);
         }
     }
     logger::Okay("All done. Closing");
 }
 
-Target &GetActiveTarget() { return targets[0]; }
+Target *GetActiveTarget() {
+    for (auto &target : targets) {
+        if (target.bin_info != 0) {
+            return &target;
+        }
+    }
+
+    return nullptr;
+}
 }  // namespace core

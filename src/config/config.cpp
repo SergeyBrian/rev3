@@ -115,6 +115,7 @@ void InitFromArgs(int argc, char **argv) {
          cxxopts::value<bool>()->default_value("true"))
         ("inspect", "Address of interest", cxxopts::value<std::string>()->default_value("0x0"))
         ("u,ui", "Enable GUI", cxxopts::value<bool>()->default_value("false"))
+        ("no-exec-code-check", "Disable SEH and .reloc based checking for executable code fragments", cxxopts::value<bool>())
     ;
     // clang-format on
 
@@ -155,6 +156,8 @@ void InitFromArgs(int argc, char **argv) {
         auto inspect_address_str = result["inspect"].as<std::string>();
         config.static_analysis.inspect_address =
             std::strtoull(inspect_address_str.c_str(), nullptr, 16);
+        config.static_analysis.do_executable_check =
+            !result.count("no-exec-code-check");
 
         Err err = LoadInterestingFunctions(
             result["interests-file"].as<std::string>(), config);
@@ -172,7 +175,7 @@ void InitFromArgs(int argc, char **argv) {
         logger::Debug("Sink search target: %s",
                       config.static_analysis.sink_target.c_str());
         if (config.static_analysis.inspect_address) {
-            logger::Debug("Inspecting address 0x%x",
+            logger::Debug("Inspecting address 0x%llx",
                           config.static_analysis.inspect_address);
         }
 

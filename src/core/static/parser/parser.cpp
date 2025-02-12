@@ -37,10 +37,13 @@ Err ParseBinary(Target &target) {
         logger::Warn("No .reloc section found");
     }
 
+    logger::Debug("Entrypoint: 0x%llx", result->entrypoint());
+    logger::Debug("Image base: 0x%llx", result->imagebase());
+
     logger::Okay("Parsing done");
 
     for (const auto &section : result->sections()) {
-        logger::Debug("Found section %s at 0x%x", section.name().c_str(),
+        logger::Debug("Found section %s at 0x%llx", section.name().c_str(),
                       section.virtual_address());
         target.sections.push_back(Section{
             .name = section.name(),
@@ -49,7 +52,7 @@ Err ParseBinary(Target &target) {
             .virtual_size = section.virtual_size(),
         });
         if (section.name() == ".text") {
-            logger::Okay(".text found at 0x%x", section.virtual_address());
+            logger::Okay(".text found at 0x%llx", section.virtual_address());
             target.text = {
                 .name = section.name(),
                 .address = section.virtual_address(),
@@ -111,31 +114,8 @@ std::vector<u64> FindImportsXrefs(LIEF::PE::Binary *bin, u64 address,
                                   Err *err) {
     auto res = bin->xref(address);
     for (const auto &xref : res) {
-        logger::Debug("\t0x%x -> ...", xref);
+        logger::Debug("\t0x%llx -> ...", xref);
     }
     return res;
-}
-
-bool IsCode(const LIEF::PE::Binary *bin, u64 addr) {
-    if (!bin->has_relocations() && !bin->has_exceptions()) {
-        logger::Warn("Can't verify that code is executable");
-        return true;
-    }
-
-    for (const auto &func : bin->exception_functions()) {
-        if (func.address() <= addr && addr <= func.address() + func.size()) {
-            return true;
-        }
-    }
-
-    for (const auto &reloc : bin->relocations()) {
-        auto base_rva = reloc.virtual_address();
-        if (!(base_rva <= addr && addr < base_rva + 0x1000)) continue;
-        for (const auto &entry : reloc.entries()) {
-            if (addr - base_rva == entry.address()) return true;
-        }
-    }
-
-    return false;
 }
 }  // namespace core::static_analysis::parser

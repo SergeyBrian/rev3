@@ -167,7 +167,7 @@ Err ControlFlowGraph::Build(disassembler::Disassembly *disas, BinInfo *bin,
     for (u64 i = 0; i < targets.size(); i++) {
         auto node = FindNodeContaining(targets[i]);
         if (node) {
-            logger::Okay("Found path to target 0x%x (%s)", targets[i],
+            logger::Okay("Found path to target 0x%llx (%s)", targets[i],
                          labels[i].c_str());
             node->label = labels[i];
         }
@@ -184,7 +184,7 @@ Err ControlFlowGraph::Build(disassembler::Disassembly *disas, BinInfo *bin,
     for (const auto &[addr, node] : nodes) {
         if (node->returns && node->block.address >= SectionBase &&
             node->callers.empty()) {
-            logger::Warn("Node 0x%x returns but is never called", addr);
+            logger::Warn("Node 0x%llx returns but is never called", addr);
         }
     }
 
@@ -222,9 +222,7 @@ CFGNode *ControlFlowGraph::FindNodeContaining(u64 address) const {
 }
 
 void ControlFlowGraph::AddEdge(CFGNode *from, CFGNode *to, CFGEdgeType type) {
-    assert(from != to);
-    assert(from->block.address != to->block.address);
-    logger::Debug("\t0x%x >>[%s]>> 0x%x", from->block.address,
+    logger::Debug("\t0x%llx >>[%s]>> 0x%llx", from->block.address,
                   EdgeTypeStr(type).c_str(), to->block.address);
     u64 from_before = from->out_edges.size();
     u64 to_before = to->in_edges.size();
@@ -248,7 +246,8 @@ void ControlFlowGraph::AddEdge(CFGNode *from, CFGNode *to, CFGEdgeType type) {
 u64 GetNextNodeAddress(u64 addr, disassembler::Disassembly *disas,
                        BinInfo *bin) {
     u64 i = 0;
-    for (; i < disas->count && disas->instructions[i].address != addr; i++);
+    for (; i < disas->count && disas->instructions[i].address != addr; i++)
+        ;
     auto instr = &disas->instructions[i];
 
     CFGEdgeType type = GetEdgeType(instr->id);
@@ -277,7 +276,7 @@ CFGNode *ControlFlowGraph::InsertFakeNode(u64 real_address) {
     if (real_address != 0) {
         if (fake_nodes.contains(real_address)) {
             fake_address = fake_nodes.at(real_address);
-            logger::Okay("Reference to existing fake address 0x%x (0x%x)",
+            logger::Okay("Reference to existing fake address 0x%llx (0x%llx)",
                          real_address, fake_address);
             return FindNode(fake_address);
         } else {
@@ -288,7 +287,7 @@ CFGNode *ControlFlowGraph::InsertFakeNode(u64 real_address) {
         fake_address = fake_node_counter--;
     }
 
-    logger::Warn("Inserting fake node 0x%x", fake_address);
+    logger::Warn("Inserting fake node 0x%llx", fake_address);
 
     auto node = std::make_unique<CFGNode>();
     node->block.address = fake_address;
@@ -303,9 +302,9 @@ CFGNode *ControlFlowGraph::InsertNode(u64 address) {
     CFGNode *return_node{};
     if (nodes.contains(address)) {
         return_node = nodes.at(address).get();
-        logger::Okay("+++ Existing node 0x%x +++", address);
+        logger::Okay("+++ Existing node 0x%llx +++", address);
     } else {
-        logger::Okay("+++ Inserted node 0x%x +++", address);
+        logger::Okay("+++ Inserted node 0x%llx +++", address);
         auto tmp = std::make_unique<CFGNode>();
         tmp->block.address = address;
         tmp->block.real_address = address;
@@ -321,7 +320,8 @@ CFGNode *ControlFlowGraph::AddNode(CFGNode *node,
                                    BinInfo *bin) {
     // Processes a node and returns pointer to the next node to process
     if (!disas->instr_map.contains(node->block.address)) {
-        logger::Warn("Reference to invalid address 0x%x!", node->block.address);
+        logger::Warn("Reference to invalid address 0x%llx!",
+                     node->block.address);
         if (node->returns) {
             for (auto caller : node->callers) {
                 AddEdge(node, caller, CFGEdgeType::Ret);
@@ -329,7 +329,7 @@ CFGNode *ControlFlowGraph::AddNode(CFGNode *node,
         }
         return nullptr;
     } else {
-        logger::Okay("Processing block at 0x%x", node->block.address);
+        logger::Okay("Processing block at 0x%llx", node->block.address);
     }
     auto it = disas->instr_map.lower_bound(node->block.address);
     auto last_addr = it->first;
@@ -358,7 +358,7 @@ CFGNode *ControlFlowGraph::AddNode(CFGNode *node,
     CFGEdgeType type = GetEdgeType(last_instr->id);
 
     u64 new_address = GetNextNodeAddress(last_addr, disas, bin);
-    logger::Debug("Next node address: 0x%x", new_address);
+    logger::Debug("Next node address: 0x%llx", new_address);
 
     // new_address = 0 means that algorithm was unable to resolve the next
     // address (or that there is no next address, e.g. ret)
@@ -374,11 +374,11 @@ CFGNode *ControlFlowGraph::AddNode(CFGNode *node,
             }
             new_address = tmp->block.address;
         } else {
-            logger::Warn("Node 0x%x skipped", new_address);
+            logger::Warn("Node 0x%llx skipped", new_address);
             return nullptr;
         }
     } else {
-        logger::Okay("Found next node address: 0x%x", new_address);
+        logger::Okay("Found next node address: 0x%llx", new_address);
     }
 
     CFGNode *new_node_ptr{};
@@ -391,7 +391,7 @@ CFGNode *ControlFlowGraph::AddNode(CFGNode *node,
         if (!nodes.contains(new_address)) {
             new_node_ptr = InsertNode(new_address);
         } else {
-            logger::Debug("Found %s reference to existing node 0x%x",
+            logger::Debug("Found %s reference to existing node 0x%llx",
                           last_instr->mnemonic, new_address);
             new_node_ptr = nodes.at(new_address).get();
             target_exists = true;
@@ -407,7 +407,7 @@ CFGNode *ControlFlowGraph::AddNode(CFGNode *node,
         }
         logger::Debug("New callers:");
         for (const auto caller : new_node_ptr->callers) {
-            logger::Debug("0x%x", caller->block.address);
+            logger::Debug("0x%llx", caller->block.address);
         }
     }
 
@@ -435,7 +435,7 @@ CFGNode *ControlFlowGraph::AddNode(CFGNode *node,
 
             u64 return_addr = last_addr + last_instr->size;
             auto return_node = InsertNode(return_addr);
-            logger::Debug("Setting return address 0x%x (current: 0x%x)",
+            logger::Debug("Setting return address 0x%llx (current: 0x%llx)",
                           return_addr, last_addr);
             new_node_ptr->callers.push_back(return_node);
             if (new_node_ptr->returns) {
@@ -450,21 +450,21 @@ CFGNode *ControlFlowGraph::AddNode(CFGNode *node,
                 }
             }
 
-            logger::Debug("Processing return address first (0x%x)",
+            logger::Debug("Processing return address first (0x%llx)",
                           return_addr);
             auto tmp = AddNode(return_node, disas, bin);
             while (tmp) {
                 tmp = AddNode(tmp, disas, bin);
             }
-            logger::Debug("Processing call address now (0x%x)", new_address);
+            logger::Debug("Processing call address now (0x%llx)", new_address);
             logger::Debug("target_exists: %s",
                           target_exists ? "true" : "false");
         } break;
         case CFGEdgeType::Ret:
             node->returns = true;
-            logger::Debug("Block 0x%x returns", node->block.address);
+            logger::Debug("Block 0x%llx returns", node->block.address);
             for (auto caller : node->callers) {
-                logger::Debug("Caller 0x%x", caller->block.address);
+                logger::Debug("Caller 0x%llx", caller->block.address);
                 AddEdge(node, caller, type);
             }
             return nullptr;
@@ -482,17 +482,18 @@ CFGNode *ControlFlowGraph::MakeFirstNode(disassembler::Disassembly *disas,
                                          BinInfo *bin) {
     auto node = std::make_unique<CFGNode>();
     u64 addr{};
+    logger::Debug("EntryPoint: %d", bin->EntryPoint());
     for (u64 i = 0; i < disas->count; i++) {
         auto instruction = disas->instructions[i];
         if (instruction.address < bin->EntryPoint()) continue;
         addr = instruction.address;
-        logger::Debug("Making first node at 0x%llx", addr);
         node->block.address = addr;
         node->block.real_address = addr;
         if (bin->IsCode(addr)) {
             break;
         }
     }
+    logger::Debug("Making first node at 0x%llx", addr);
 
     nodes[addr] = std::move(node);
     return nodes[addr].get();
@@ -510,7 +511,7 @@ void ControlFlowGraph::MapBaseBlocks(disassembler::Disassembly *disas,
     }
 
     for (const auto &[address, node] : nodes) {
-        logger::Debug("Node 0x%x (%d) [%d callers] <- %d; -> %d", address,
+        logger::Debug("Node 0x%llx (%d) [%d callers] <- %d; -> %d", address,
                       node->block.size, node->callers.size(),
                       node->in_edges.size(), node->out_edges.size());
         if (!node->callers.empty() && node->in_edges.empty()) {
@@ -518,17 +519,17 @@ void ControlFlowGraph::MapBaseBlocks(disassembler::Disassembly *disas,
                 "Callers not empty, but not incoming connections. ???");
         }
         for (const auto &caller : node->callers) {
-            logger::Debug("\t0x%x", caller->block.address);
+            logger::Debug("\t0x%llx", caller->block.address);
         }
         logger::Debug("Incoming edges:");
         for (const auto &edge : node->in_edges) {
-            logger::Debug("\t0x%x -> 0x%x (%s)", edge.source->block.address,
+            logger::Debug("\t0x%llx -> 0x%llx (%s)", edge.source->block.address,
                           edge.target->block.address,
                           EdgeTypeStr(edge.type).c_str());
         }
         logger::Debug("Outgoing edges:");
         for (const auto &edge : node->out_edges) {
-            logger::Debug("\t0x%x -> 0x%x (%s)", edge.source->block.address,
+            logger::Debug("\t0x%llx -> 0x%llx (%s)", edge.source->block.address,
                           edge.target->block.address,
                           EdgeTypeStr(edge.type).c_str());
         }

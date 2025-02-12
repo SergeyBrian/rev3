@@ -207,7 +207,7 @@ void OnFrame() {
                      ImGuiWindowFlags_NoNavFocus);
     ImGui::DockSpace(ImGui::GetID("MainDockspace"));
     DrawImportsTable();
-    DrawNodes();
+    /*DrawNodes();*/
     DrawCode();
     ImGui::End();
 }
@@ -235,7 +235,8 @@ void Run() {
     glfwWindowHint(GLFW_SCALE_TO_MONITOR, GLFW_TRUE);
 #endif
 
-    target = &core::GetActiveTarget();
+    target = core::GetActiveTarget();
+    if (!target) return;
     std::string win_name = "Rev3 GUI - " + target->display_name;
 
     GLFWwindow *window =
