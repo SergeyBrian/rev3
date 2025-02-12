@@ -64,6 +64,14 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(glfw)
 
+FetchContent_Declare(
+    imgui-node-editor
+    GIT_REPOSITORY https://github.com/thedmd/imgui-node-editor
+    GIT_TAG v0.9.3
+)
+
+FetchContent_MakeAvailable(imgui-node-editor)
+
 find_package(OpenGL REQUIRED)
 
 set(common

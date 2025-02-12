@@ -33,9 +33,17 @@ Disassembly::Disassembly() {
         throw std::runtime_error("Failed to initialize capstone");
     }
 }
+
+static std::map<u64, std::map<u64, std::string>> strings_cache;
+
 std::string Disassembly::GetString(u64 addr, usize size) {
     auto it = instr_map.lower_bound(addr);
     if (size == 0) size += it->second->size;
+    if (strings_cache.contains(addr) && strings_cache[addr].contains(size)) {
+        return strings_cache.at(addr).at(size);
+    }
+    logger::Debug("Disas string cache miss 0x%x (%d)", addr, size);
+
     std::stringstream ss;
     for (; it != instr_map.end(); it = std::next(it)) {
         const auto &[address, instr] = *it;
@@ -43,6 +51,7 @@ std::string Disassembly::GetString(u64 addr, usize size) {
         ss << std::hex << "0x" << address << "\t" << instr->mnemonic << " "
            << instr->op_str << "\n";
     }
+    strings_cache[addr][size] = ss.str();
     return ss.str();
 }
 

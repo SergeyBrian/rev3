@@ -5,6 +5,8 @@
 #include "../../../utils/logger.hpp"
 
 namespace core::static_analysis {
+static const u64 SectionBase = 0x1000;
+
 std::string EdgeTypeStr(CFGEdgeType type) {
     switch (type) {
         case CFGEdgeType::Jmp:
@@ -162,7 +164,7 @@ Err ControlFlowGraph::Build(disassembler::Disassembly *disas, BinInfo *bin,
     MapBaseBlocks(disas, bin);
 
     for (const auto &target : targets) {
-        if (FindNode(target)) {
+        if (FindNodeContaining(target)) {
             logger::Okay("Found path to target 0x%x", target);
         }
     }
@@ -176,7 +178,7 @@ Err ControlFlowGraph::Build(disassembler::Disassembly *disas, BinInfo *bin,
     logger::Debug("Checking graph");
 
     for (const auto &[addr, node] : nodes) {
-        if (node->returns && node->block.address >= 0x1000 &&
+        if (node->returns && node->block.address >= SectionBase &&
             node->callers.empty()) {
             logger::Warn("Node 0x%x returns but is never called", addr);
         }
@@ -191,13 +193,23 @@ Err ControlFlowGraph::Build(disassembler::Disassembly *disas, BinInfo *bin,
 
 CFGNode *ControlFlowGraph::FindNode(u64 address) const {
     auto it = nodes.find(address);
-    return (it != nodes.end()) ? it->second.get() : nullptr;
+    if (it != nodes.end()) return it->second.get();
+    for (u64 i = 0; i < SectionBase; i++) {
+        if (nodes.contains(i) && nodes.at(i)->block.real_address == address) {
+            return (it != nodes.end()) ? it->second.get() : nullptr;
+        }
+    }
+    return nullptr;
 }
 
 CFGNode *ControlFlowGraph::FindNodeContaining(u64 address) const {
     for (const auto &[addr, node] : nodes) {
-        if ((addr <= address && address < addr + node->block.size) ||
-            (addr == address && node->block.size == 0)) {
+        if (((node->block.address <= address &&
+              address < node->block.address + node->block.size) ||
+             (node->block.address == address && node->block.size == 0)) ||
+            ((node->block.real_address <= address &&
+              address < node->block.real_address + node->block.size) ||
+             (node->block.real_address == address && node->block.size == 0))) {
             return node.get();
         }
     }
@@ -276,6 +288,7 @@ CFGNode *ControlFlowGraph::InsertFakeNode(u64 real_address) {
 
     auto node = std::make_unique<CFGNode>();
     node->block.address = fake_address;
+    node->block.real_address = real_address;
     node->returns = true;
     nodes[fake_address] = std::move(node);
 
@@ -291,6 +304,7 @@ CFGNode *ControlFlowGraph::InsertNode(u64 address) {
         logger::Okay("+++ Inserted node 0x%x +++", address);
         auto tmp = std::make_unique<CFGNode>();
         tmp->block.address = address;
+        tmp->block.real_address = address;
         return_node = tmp.get();
         nodes[address] = std::move(tmp);
     }
@@ -468,6 +482,7 @@ CFGNode *ControlFlowGraph::MakeFirstNode(disassembler::Disassembly *disas,
         auto instruction = disas->instructions[i];
         addr = instruction.address;
         node->block.address = addr;
+        node->block.real_address = addr;
         if (bin->IsCode(addr)) {
             break;
         }

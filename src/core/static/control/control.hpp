@@ -13,6 +13,7 @@
 namespace core::static_analysis {
 struct BaseBlock {
     u64 address;
+    u64 real_address;
     usize size{};
 };
 
