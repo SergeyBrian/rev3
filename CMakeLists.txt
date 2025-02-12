@@ -52,7 +52,7 @@ FetchContent_MakeAvailable(googletest)
 FetchContent_Declare(
     imgui
     GIT_REPOSITORY https://github.com/ocornut/imgui.git
-    GIT_TAG v1.91.8
+    GIT_TAG v1.89.7-docking
 )
 
 FetchContent_MakeAvailable(imgui)
@@ -65,12 +65,12 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(glfw)
 
 FetchContent_Declare(
-    imgui-node-editor
-    GIT_REPOSITORY https://github.com/thedmd/imgui-node-editor
-    GIT_TAG v0.9.3
+    imnodes
+    GIT_REPOSITORY https://github.com/Nelarius/imnodes
+    GIT_TAG v0.5
 )
 
-FetchContent_MakeAvailable(imgui-node-editor)
+FetchContent_MakeAvailable(imnodes)
 
 find_package(OpenGL REQUIRED)
 
@@ -119,6 +119,10 @@ set(imgui_source
 
     ${imgui_SOURCE_DIR}/backends/imgui_impl_glfw.cpp
     ${imgui_SOURCE_DIR}/backends/imgui_impl_opengl3.cpp
+
+    ${imnodes_SOURCE_DIR}/imnodes.cpp
+    ${imnodes_SOURCE_DIR}/imnodes.h
+    ${imnodes_SOURCE_DIR}/imnodes_internal.h
 )
 
 add_executable(${CMAKE_PROJECT_NAME} src/main.cpp
@@ -133,8 +137,9 @@ cxxopts LIEF::LIEF nlohmann_json::nlohmann_json capstone glfw OpenGL::GL
 )
 
 target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE ${libs})
-target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE ${imgui_SOURCE_DIR})
+target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE ${imgui_SOURCE_DIR} ${imnodes_SOURCE_DIR})
 
+add_compile_definitions(IMGUI_ENABLE_DOCKING IMGUI_DEFINE_MATH_OPERATORS)
 
 add_custom_target(copy_config ALL
     COMMAND ${CMAKE_COMMAND} -E copy_directory "${CONFIG_SOURCE_DIR}" "${CONFIG_DEST_DIR}"
