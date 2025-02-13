@@ -59,6 +59,32 @@ std::string Disassembly::GetString(u64 addr, usize size) {
     strings_cache[addr][size] = ss.str();
     return ss.str();
 }
+void Disassembly::RegAccess(const cs_insn *instr, cs_regs reg_write,
+                            u8 *reg_write_count, cs_regs reg_read,
+                            u8 *reg_read_count) {
+    if (reg_write == nullptr) {
+        cs_regs dummy{};
+        u8 dummy_count{};
+        cs_regs_access(handle, instr, reg_read, reg_read_count, dummy,
+                       &dummy_count);
+    } else if (reg_read == nullptr) {
+        cs_regs dummy{};
+        u8 dummy_count{};
+        cs_regs_access(handle, instr, dummy, &dummy_count, reg_write,
+                       reg_write_count);
+    } else {
+        cs_regs_access(handle, instr, reg_read, reg_read_count, reg_write,
+                       reg_write_count);
+    }
+}
+
+void Disassembly::RegAccess(u64 instr_addr, cs_regs reg_write,
+                            u8 *reg_write_count, cs_regs reg_read,
+                            u8 *reg_read_count) {
+    assert(reg_write != nullptr || reg_read != nullptr && "WTF are you doing");
+    RegAccess(instr_map.at(instr_addr), reg_write, reg_write_count, reg_read,
+              reg_read_count);
+}
 
 void Print(const cs_insn *instr, u64 count) {
     while (count--) {

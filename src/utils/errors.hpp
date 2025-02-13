@@ -14,6 +14,8 @@ enum class ErrorCode {
     DisassemblerError,
     NoXrefsFound,
     ArchitectureMismatch,
+    UnknownCmpInstr,
+    InvalidOperand,
     Count
 };
 
@@ -32,6 +34,8 @@ inline const char *ErrorText[static_cast<int>(ErrorCode::Count)] = {
     "Disassembler failed",
     "No xrefs found",
     "Wrong tool architecture",
+    "Unknown instruction affecting condition",
+    "Invalid operand",
 };
 
 #endif

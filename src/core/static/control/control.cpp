@@ -2,8 +2,10 @@
 
 #include <algorithm>
 
+#include "capstone/capstone.h"
+
+#include "../../../utils/utils.hpp"
 #include "../../../utils/logger.hpp"
-#include "capstone/x86.h"
 
 namespace core::static_analysis {
 static const u64 SectionBase = 0x1000;
@@ -222,7 +224,8 @@ CFGNode *ControlFlowGraph::FindNodeContaining(u64 address) const {
     return nullptr;
 }
 
-void ControlFlowGraph::AddEdge(CFGNode *from, CFGNode *to, CFGEdgeType type) {
+void ControlFlowGraph::AddEdge(CFGNode *from, CFGNode *to, CFGEdgeType type,
+                               Condition condition) {
     logger::Debug("\t0x%llx >>[%s]>> 0x%llx", from->block.address,
                   EdgeTypeStr(type).c_str(), to->block.address);
     u64 from_before = from->out_edges.size();
@@ -231,11 +234,13 @@ void ControlFlowGraph::AddEdge(CFGNode *from, CFGNode *to, CFGEdgeType type) {
         .type = type,
         .target = to,
         .source = from,
+        .condition = condition,
     });
     to->in_edges.push_back({
         .type = type,
         .target = to,
         .source = from,
+        .condition = condition,
     });
     u64 from_after = from->out_edges.size();
     u64 to_after = to->in_edges.size();
@@ -246,9 +251,9 @@ void ControlFlowGraph::AddEdge(CFGNode *from, CFGNode *to, CFGEdgeType type) {
 
 u64 GetNextNodeAddress(u64 addr, disassembler::Disassembly *disas,
                        BinInfo *bin) {
-    u64 i = 0;
-    for (; i < disas->count && disas->instructions[i].address != addr; i++)
-        ;
+    u64 i{};
+    for (; i < disas->count && disas->instructions[i].address != addr; i++) {
+    };
     auto instr = &disas->instructions[i];
 
     CFGEdgeType type = GetEdgeType(instr->id);
@@ -314,6 +319,245 @@ CFGNode *ControlFlowGraph::InsertNode(u64 address) {
     }
 
     return return_node;
+}
+
+Flag GetFlagsTested(const cs_insn *instr) {
+    Flag res{};
+    if (X86_EFLAGS_TEST_CF & instr->detail->x86.eflags) {
+        res |= Flag::CF;
+    }
+    if (X86_EFLAGS_TEST_PF & instr->detail->x86.eflags) {
+        res |= Flag::PF;
+    }
+    if (X86_EFLAGS_TEST_AF & instr->detail->x86.eflags) {
+        res |= Flag::AF;
+    }
+    if (X86_EFLAGS_TEST_ZF & instr->detail->x86.eflags) {
+        res |= Flag::ZF;
+    }
+    if (X86_EFLAGS_TEST_SF & instr->detail->x86.eflags) {
+        res |= Flag::SF;
+    }
+    if (X86_EFLAGS_TEST_OF & instr->detail->x86.eflags) {
+        res |= Flag::OF;
+    }
+
+    return res;
+}
+
+Flag GetFlagsWritten(const cs_insn *instr) {
+    Flag res{};
+    if ((X86_EFLAGS_MODIFY_CF | X86_EFLAGS_RESET_CF | X86_EFLAGS_SET_CF) &
+        instr->detail->x86.eflags) {
+        res |= Flag::CF;
+    }
+    if ((X86_EFLAGS_MODIFY_PF | X86_EFLAGS_RESET_PF | X86_EFLAGS_SET_PF) &
+        instr->detail->x86.eflags) {
+        res |= Flag::PF;
+    }
+    if ((X86_EFLAGS_MODIFY_AF | X86_EFLAGS_RESET_AF | X86_EFLAGS_SET_AF) &
+        instr->detail->x86.eflags) {
+        res |= Flag::AF;
+    }
+    if ((X86_EFLAGS_MODIFY_ZF | X86_EFLAGS_RESET_ZF | X86_EFLAGS_SET_ZF) &
+        instr->detail->x86.eflags) {
+        res |= Flag::ZF;
+    }
+    if ((X86_EFLAGS_MODIFY_SF | X86_EFLAGS_RESET_SF | X86_EFLAGS_SET_SF) &
+        instr->detail->x86.eflags) {
+        res |= Flag::SF;
+    }
+    if ((X86_EFLAGS_MODIFY_OF | X86_EFLAGS_RESET_OF | X86_EFLAGS_SET_OF) &
+        instr->detail->x86.eflags) {
+        res |= Flag::OF;
+    }
+
+    return res;
+}
+
+// Assumes comparison type from conditional jump alone
+Operator OperatorFromInstr(const cs_insn *instr) {
+    switch (static_cast<x86_insn>(instr->id)) {
+        case X86_INS_JE:
+            return Operator::Equal;
+        case X86_INS_JGE:
+            return Operator::GreaterThanOrEqual;
+        case X86_INS_JG:
+        case X86_INS_JNS:
+            return Operator::GreaterThan;
+        case X86_INS_JLE:
+            return Operator::LessThanOrEqual;
+        case X86_INS_JL:
+        case X86_INS_JS:
+            return Operator::LessThan;
+        case X86_INS_JNE:
+            return Operator::NotEqual;
+        default:
+            return Operator::Invalid;
+    }
+}
+
+RegCmpCondition MakeRegCmpCondition(Operator op, const cs_insn *instr,
+                                    disassembler::Disassembly *disas,
+                                    BinInfo *bin, Err *err) {
+    RegCmpCondition res{};
+    if (instr->detail->x86.op_count == 1) {
+        auto operand = instr->detail->x86.operands[0];
+        switch (operand.type) {
+            case X86_OP_INVALID:
+                logger::Error("Invalid operand in %s %s", instr->mnemonic,
+                              instr->op_str);
+                *err = Err::InvalidOperand;
+                return {};
+            case X86_OP_REG:
+                res.lhs = operand.reg;
+            case X86_OP_IMM:
+                res.lhs = operand.imm;
+            case X86_OP_MEM:
+                res.lhs.type = Operand::Type::Mem;
+                res.lhs.mem_address = disassembler::SolveMemValue(instr, bin);
+                break;
+        }
+
+        res.rhs = 0;
+        res.op = op;
+
+        return res;
+    }
+
+    cs_regs reg_write{};
+    u8 reg_write_count{};
+    cs_regs reg_read{};
+    u8 reg_read_count{};
+    auto lhs = instr->detail->x86.operands[0];
+    auto rhs = instr->detail->x86.operands[0];
+
+    if (lhs.type == X86_OP_INVALID || rhs.type == X86_OP_INVALID) {
+        logger::Error("Invalid operand in %s %s", instr->mnemonic,
+                      instr->op_str);
+        *err = Err::InvalidOperand;
+        return {};
+    }
+
+    disas->RegAccess(instr, reg_write, &reg_write_count, reg_read,
+                     &reg_read_count);
+
+    // Handle initial setup common for all operands
+    switch (lhs.type) {
+        case X86_OP_REG:
+            res.lhs = lhs.reg;
+            break;
+        case X86_OP_IMM:
+            res.lhs = lhs.imm;
+            break;
+        case X86_OP_MEM: {
+            res.lhs = disassembler::SolveMemValue(instr, bin);
+            res.lhs.type = Operand::Type::Mem;
+        } break;
+        default:
+            UNREACHABLE
+    }
+    switch (rhs.type) {
+        case X86_OP_REG:
+            res.rhs = rhs.reg;
+            break;
+        case X86_OP_IMM:
+            res.rhs = rhs.imm;
+            break;
+        case X86_OP_MEM: {
+            res.rhs = disassembler::SolveMemValue(instr, bin);
+            res.rhs.type = Operand::Type::Mem;
+        } break;
+        default:
+            UNREACHABLE
+    }
+    res.op = op;
+
+    switch (static_cast<x86_insn>(instr->id)) {
+        case X86_INS_CMP: {
+        } break;
+        case X86_INS_TEST: {
+            if (lhs.type == X86_OP_REG && rhs.type == X86_OP_REG) {
+                if ((op == Operator::Equal || op == Operator::NotEqual) &&
+                    lhs.reg == rhs.reg) {
+                    res.lhs = lhs.reg;
+                    res.rhs = 0;
+                }
+            }
+        } break;
+        default:
+            break;
+    }
+
+    return res;
+}
+
+Condition MakeCondition(cs_insn *instr, disassembler::Disassembly *disas,
+                        BinInfo *bin) {
+    logger::Debug("Analyzing %s at 0x%llx", instr->mnemonic, instr->address);
+    Condition res{};
+    res.flags = GetFlagsTested(instr);
+    switch (instr->id) {
+        case X86_INS_JCXZ:
+            res.type = Condition::Type::RegCmp;
+            res.reg_cmp.lhs.reg = X86_REG_CX;
+            res.reg_cmp.rhs.constant = 0;
+            res.reg_cmp.op = Operator::Equal;
+            break;
+        case X86_INS_JECXZ:
+            res.type = Condition::Type::RegCmp;
+            res.reg_cmp.lhs.reg = X86_REG_ECX;
+            res.reg_cmp.rhs.constant = 0;
+            res.reg_cmp.op = Operator::Equal;
+            break;
+        case X86_INS_JRCXZ:
+            res.type = Condition::Type::RegCmp;
+            res.reg_cmp.lhs.reg = X86_REG_RCX;
+            res.reg_cmp.rhs.constant = 0;
+            res.reg_cmp.op = Operator::Equal;
+            break;
+        default:
+            break;
+    }
+
+    // Only J*CXZ case
+    if (res.type == Condition::Type::RegCmp) return res;
+
+    u8 effective_instr_idx{};
+    Flag active_flags = res.flags;
+
+    // TODO: EXTREMELLY unsafe, need to set lower bound for instr
+    cs_insn *tmp = instr;
+    for (; static_cast<u8>(active_flags); tmp--) {
+        assert(
+            effective_instr_idx < 3 &&
+            "Programming error. No more than two instructions can affect JCC");
+        Flag flags_written = GetFlagsWritten(tmp);
+        logger::Debug("Inspecting %s %s", tmp->mnemonic, tmp->op_str);
+        if (!static_cast<u8>(flags_written & active_flags)) continue;
+        logger::Okay("Instruction sets required flags");
+        res.affected_by_instr[effective_instr_idx++] = tmp->address;
+        active_flags &= ~flags_written;
+    }
+
+    // Now that we have found all instructions that affect the condition, the
+    // only thing left to do is extraction of affected registers
+    for (u8 i = 0; i < 2; i++) {
+        auto effective_instr = disas->instr_map.at(res.affected_by_instr[i]);
+        Operator op = OperatorFromInstr(effective_instr);
+        Err err{};
+        RegCmpCondition cond =
+            MakeRegCmpCondition(op, effective_instr, disas, bin, &err);
+        if (err != Err::Ok) {
+            logger::Warn("%s in %s %s", ErrorText[static_cast<u8>(err)],
+                         instr->mnemonic, instr->op_str);
+            continue;
+        }
+        res.reg_cmp = cond;
+        break;
+    }
+
+    return res;
 }
 
 CFGNode *ControlFlowGraph::AddNode(CFGNode *node,
@@ -417,11 +661,16 @@ CFGNode *ControlFlowGraph::AddNode(CFGNode *node,
             AddEdge(node, new_node_ptr, type);
             break;
         case CFGEdgeType::Jcc: {
-            AddEdge(node, new_node_ptr, type);
+            auto cond = MakeCondition(last_instr, disas, bin);
+            logger::Okay("========= CONSTRUCTED CONDITION =========");
+
+            AddEdge(node, new_node_ptr, type, cond);
 
             u64 next_addr = last_addr + last_instr->size;
             auto second_node = InsertNode(next_addr);
-            AddEdge(node, second_node, type);
+
+            cond.inverted = true;
+            AddEdge(node, second_node, type, cond);
 
             auto tmp = AddNode(nodes.at(next_addr).get(), disas, bin);
             while (tmp) {
@@ -509,31 +758,6 @@ void ControlFlowGraph::MapBaseBlocks(disassembler::Disassembly *disas,
 
     if (nodes.contains(0)) {
         nodes.erase(0);
-    }
-
-    for (const auto &[address, node] : nodes) {
-        logger::Debug("Node 0x%llx (%d) [%d callers] <- %d; -> %d", address,
-                      node->block.size, node->callers.size(),
-                      node->in_edges.size(), node->out_edges.size());
-        if (!node->callers.empty() && node->in_edges.empty()) {
-            logger::Warn(
-                "Callers not empty, but not incoming connections. ???");
-        }
-        for (const auto &caller : node->callers) {
-            logger::Debug("\t0x%llx", caller->block.address);
-        }
-        logger::Debug("Incoming edges:");
-        for (const auto &edge : node->in_edges) {
-            logger::Debug("\t0x%llx -> 0x%llx (%s)", edge.source->block.address,
-                          edge.target->block.address,
-                          EdgeTypeStr(edge.type).c_str());
-        }
-        logger::Debug("Outgoing edges:");
-        for (const auto &edge : node->out_edges) {
-            logger::Debug("\t0x%llx -> 0x%llx (%s)", edge.source->block.address,
-                          edge.target->block.address,
-                          EdgeTypeStr(edge.type).c_str());
-        }
     }
 }
 

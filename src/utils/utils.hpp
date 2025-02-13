@@ -1,6 +1,8 @@
 #ifndef UTILS_UTILS_HPP
 #define UTILS_UTILS_HPP
 
+#define UNREACHABLE assert(false && "This branch should never execute");
+
 namespace utils {
 template <class C, typename T>
 inline bool contains(C &&c, T e) {

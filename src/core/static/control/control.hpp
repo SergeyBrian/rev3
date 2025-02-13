@@ -27,20 +27,47 @@ enum class CFGEdgeType : u8 {
 };
 
 enum class Flag : u8 {
-    ZF,
-    SF,
-    OF,
-    CF,
-    PF,
-    AF,
+    ZF = 0x1,
+    SF = 0x1 << 1,
+    OF = 0x1 << 2,
+    CF = 0x1 << 3,
+    PF = 0x1 << 4,
+    AF = 0x1 << 5,
 };
 
-struct FlagCondition {
-    Flag flag;
-    bool val;
-};
+constexpr Flag operator|(Flag lhs, Flag rhs) {
+    return static_cast<Flag>(static_cast<u8>(lhs) | static_cast<u8>(rhs));
+}
+
+constexpr Flag operator&(Flag lhs, Flag rhs) {
+    return static_cast<Flag>(static_cast<u8>(lhs) & static_cast<u8>(rhs));
+}
+
+constexpr Flag operator^(Flag lhs, Flag rhs) {
+    return static_cast<Flag>(static_cast<u8>(lhs) ^ static_cast<u8>(rhs));
+}
+
+constexpr Flag operator~(Flag flag) {
+    return static_cast<Flag>(~static_cast<u8>(flag));
+}
+
+inline Flag &operator|=(Flag &lhs, Flag rhs) {
+    lhs = lhs | rhs;
+    return lhs;
+}
+
+inline Flag &operator&=(Flag &lhs, Flag rhs) {
+    lhs = lhs & rhs;
+    return lhs;
+}
+
+inline Flag &operator^=(Flag &lhs, Flag rhs) {
+    lhs = lhs ^ rhs;
+    return lhs;
+}
 
 enum class Operator : u8 {
+    Invalid,
     Equal,
     GreaterThan,
     LessThan,
@@ -51,9 +78,15 @@ enum class Operator : u8 {
 
 using Register = x86_reg;
 struct Operand {
-    enum class Type : u8 { Register, Constant };
-    Register reg;
-    u64 constant;
+    enum class Type : u8 { Register, Constant, Mem };
+    Type type{};
+    Register reg{};
+    u64 constant{};
+    u64 mem_address{};
+
+    Operand() = default;
+    Operand(Register reg) : type(Type::Register), reg(reg){};
+    Operand(u64 constant) : type(Type::Constant), constant(constant){};
 };
 
 struct RegCmpCondition {
@@ -63,10 +96,19 @@ struct RegCmpCondition {
 };
 
 struct Condition {
+    // The Flag type is only used when analyzer was unable to find a register
+    // comparison operation, which should never happen when analyzing normal
+    // code
     enum class Type : u8 { Flag, RegCmp };
+    Type type{};
+    bool inverted{};
 
-    FlagCondition flag;
-    RegCmpCondition reg_cmp;
+    // Addresses of instructions affecting condition
+    u64 affected_by_instr[2]{};
+
+    // Specifies, which flags participate in condition
+    Flag flags;
+    RegCmpCondition reg_cmp{};
 };
 
 std::string EdgeTypeStr(CFGEdgeType type);
@@ -126,7 +168,8 @@ private:
     u64 fake_node_counter = 0x1000 - 1;
     std::map<u64, u64> fake_nodes;
 
-    void AddEdge(CFGNode *from, CFGNode *to, CFGEdgeType type);
+    void AddEdge(CFGNode *from, CFGNode *to, CFGEdgeType type,
+                 Condition condition = {});
     CFGNode *AddNode(CFGNode *node, disassembler::Disassembly *disas,
                      BinInfo *bin);
     CFGNode *MakeFirstNode(disassembler::Disassembly *disas, BinInfo *bin);
