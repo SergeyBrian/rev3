@@ -7,6 +7,10 @@ LiefBin::LiefBin(std::unique_ptr<LIEF::PE::Binary> lief_bin)
     : bin(std::move(lief_bin)) {}
 
 std::vector<u64> LiefBin::FindImportsXrefs(u64 addr, Err *err) {
+    if (!bin) {
+        *err = Err::UnparsedBinary;
+        return {};
+    }
     auto res = bin->xref(addr);
     for (const auto &xref : res) {
         logger::Debug("\t0x%llx -> ...", xref);

@@ -72,6 +72,13 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(imnodes)
 
+if (MSVC)
+    add_compile_options(/W4 /WX /wd4477 /wd4005)
+else()
+    add_compile_options(-Wall -Wextra -pedantic -Werror -Wno-format -Wno-macro-redefined)
+endif()
+
+
 find_package(OpenGL REQUIRED)
 
 set(common

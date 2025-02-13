@@ -26,6 +26,49 @@ enum class CFGEdgeType : u8 {
     Int,
 };
 
+enum class Flag : u8 {
+    ZF,
+    SF,
+    OF,
+    CF,
+    PF,
+    AF,
+};
+
+struct FlagCondition {
+    Flag flag;
+    bool val;
+};
+
+enum class Operator : u8 {
+    Equal,
+    GreaterThan,
+    LessThan,
+    GreaterThanOrEqual,
+    LessThanOrEqual,
+    NotEqual,
+};
+
+using Register = x86_reg;
+struct Operand {
+    enum class Type : u8 { Register, Constant };
+    Register reg;
+    u64 constant;
+};
+
+struct RegCmpCondition {
+    Operand lhs;
+    Operand rhs;
+    Operator op;
+};
+
+struct Condition {
+    enum class Type : u8 { Flag, RegCmp };
+
+    FlagCondition flag;
+    RegCmpCondition reg_cmp;
+};
+
 std::string EdgeTypeStr(CFGEdgeType type);
 
 struct CFGNode;
@@ -34,6 +77,8 @@ struct CFGEdge {
     CFGEdgeType type;
     CFGNode *target;
     CFGNode *source;
+
+    Condition condition;
 };
 
 struct CFGNode {

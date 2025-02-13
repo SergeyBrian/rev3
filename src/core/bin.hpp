@@ -17,6 +17,7 @@ public:
     virtual u64 ImageBase() const = 0;
     virtual const byte *Data(u64 addr, usize size) const = 0;
     virtual u64 EntryPoint() const = 0;
+    virtual ~BinInfo() = default;
 };
 }  // namespace core
 

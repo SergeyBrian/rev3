@@ -112,6 +112,10 @@ Err ParseBinary(Target &target) {
 }
 std::vector<u64> FindImportsXrefs(LIEF::PE::Binary *bin, u64 address,
                                   Err *err) {
+    if (!bin) {
+        *err = Err::UnparsedBinary;
+        return {};
+    }
     auto res = bin->xref(address);
     for (const auto &xref : res) {
         logger::Debug("\t0x%llx -> ...", xref);

@@ -48,7 +48,6 @@ std::string Disassembly::GetString(u64 addr, usize size) {
     if (strings_cache.contains(addr) && strings_cache[addr].contains(size)) {
         return strings_cache.at(addr).at(size);
     }
-    logger::Debug("Disas string cache miss 0x%llx (%d)", addr, size);
 
     std::stringstream ss;
     for (; it != instr_map.end(); it = std::next(it)) {

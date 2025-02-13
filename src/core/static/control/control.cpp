@@ -3,6 +3,7 @@
 #include <algorithm>
 
 #include "../../../utils/logger.hpp"
+#include "capstone/x86.h"
 
 namespace core::static_analysis {
 static const u64 SectionBase = 0x1000;
@@ -571,7 +572,7 @@ std::unique_ptr<ControlFlowGraph> ControlFlowGraph::MakeCFG(
         to->in_edges.push_back(new_edge);
     }
 
-    return std::move(res);
+    return res;
 }
 
 CFGNode::~CFGNode() = default;

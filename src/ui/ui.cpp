@@ -3,8 +3,8 @@
 #include <iostream>
 #include <queue>
 
+#include <imgui.h>
 #include "imnodes.h"
-#include "imgui.h"
 #include "backends/imgui_impl_glfw.h"
 #include "backends/imgui_impl_opengl3.h"
 #include <GLFW/glfw3.h>
@@ -12,11 +12,16 @@
 #include "../core/core.hpp"
 #include "../config/config.hpp"
 
+#if __APPLE__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+#endif
+
 namespace ui {
-static const ImVec4 ImGuiColorRed(0.8f, 0, 0, 1.0f);
-static const ImVec4 ImGuiColorGreen(0, 0.8f, 0, 1.0f);
-static const ImVec4 ImGuiColorYellow(0.8f, 0.8f, 0, 1.0f);
-static const ImVec4 ImGuiColorBlue(0.2f, 0.59f, 0.9f, 1.0f);
+[[maybe_unused]] static constexpr ImVec4 ImGuiColorRed(.8f, 0, 0, 1.0f);
+[[maybe_unused]] static constexpr ImVec4 ImGuiColorGreen(0, .8f, 0, 1.0f);
+[[maybe_unused]] static constexpr ImVec4 ImGuiColorYellow(.8f, .8f, 0, 1.0f);
+[[maybe_unused]] static constexpr ImVec4 ImGuiColorBlue(.2f, .59f, .9f, 1.0f);
 
 static std::map<u64, bool> active_imports{};
 static std::map<u64, bool> active_nodes{};
@@ -313,4 +318,8 @@ void Run() {
     glfwDestroyWindow(window);
     glfwTerminate();
 }
+
+#if __APPLE__
+#pragma clang diagnostic pop
+#endif
 }  // namespace ui
