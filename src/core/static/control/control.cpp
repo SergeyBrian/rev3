@@ -430,7 +430,7 @@ RegCmpCondition MakeRegCmpCondition(Operator op, const cs_insn *instr,
     cs_regs reg_read{};
     u8 reg_read_count{};
     auto lhs = instr->detail->x86.operands[0];
-    auto rhs = instr->detail->x86.operands[0];
+    auto rhs = instr->detail->x86.operands[1];
 
     if (lhs.type == X86_OP_INVALID || rhs.type == X86_OP_INVALID) {
         logger::Error("Invalid operand in %s %s", instr->mnemonic,
@@ -544,7 +544,7 @@ Condition MakeCondition(cs_insn *instr, disassembler::Disassembly *disas,
     // only thing left to do is extraction of affected registers
     for (u8 i = 0; i < 2; i++) {
         auto effective_instr = disas->instr_map.at(res.affected_by_instr[i]);
-        Operator op = OperatorFromInstr(effective_instr);
+        Operator op = OperatorFromInstr(instr);
         Err err{};
         RegCmpCondition cond =
             MakeRegCmpCondition(op, effective_instr, disas, bin, &err);
