@@ -164,6 +164,7 @@ struct ControlFlowGraph {
         std::vector<core::static_analysis::BaseBlock> blocks,
         std::vector<EdgeTemplate> edges);
     std::vector<u64> FindShortestPath(u64 start, u64 end);
+    std::vector<u64> FindXrefs(std::string label);
 
 private:
     u64 fake_node_counter = 0x1000 - 1;

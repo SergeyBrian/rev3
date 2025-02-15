@@ -867,4 +867,15 @@ std::vector<u64> ControlFlowGraph::FindShortestPath(u64 start, u64 end) {
 
     return path;
 }
+std::vector<u64> ControlFlowGraph::FindXrefs(std::string label) {
+    std::vector<u64> res{};
+
+    for (const auto &[addr, node] : nodes) {
+        if (node->label == label) {
+            res.push_back(addr);
+        }
+    }
+
+    return res;
+}
 }  // namespace core::static_analysis

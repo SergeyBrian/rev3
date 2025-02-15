@@ -34,6 +34,7 @@ void Print(const cs_insn *instr, u64 count = 1);
 i64 ParseOffsetPtr(const char *opstr);
 u64 GetJmpAddress(const cs_insn *instr, BinInfo *bin);
 u64 GetCallAddress(const cs_insn *instr, BinInfo *bin);
+u64 SolveMemAddress(const cs_insn *instr);
 u64 SolveMemValue(const cs_insn *instr, BinInfo *bin);
 }  // namespace core::static_analysis::disassembler
 

@@ -33,6 +33,41 @@ Err Init() {
     return err;
 }
 
+const Function *SelectTargetFunction(Target &target, Tag filter) {
+    logger::Info("Choose one of sink functions below:");
+    u64 func_idx{};
+    std::vector<const Function *> active_funcs{};
+    for (const auto &[_, funcs] : target.imports) {
+        for (const auto &func : funcs) {
+            if (func.tags & static_cast<u8>(filter)) {
+                logger::Info("%d:\t%s", ++func_idx, func.display_name.c_str());
+                active_funcs.push_back(&func);
+            }
+        }
+    }
+
+    if (filter != Tag::Any) {
+        std::cout << "If your function of interest is not in list, type in 0 "
+                     "to view full list\n";
+    }
+    std::cout << "Enter number 1-" << func_idx << ": ";
+    std::cin >> func_idx;
+    if (func_idx == 0) {
+        return SelectTargetFunction(target, Tag::Any);
+    }
+
+    if (func_idx > active_funcs.size()) {
+        logger::Error("Option not found, please select valid option");
+        return SelectTargetFunction(target, filter);
+    }
+
+    func_idx -= 1;
+
+    logger::Okay("You have selected target function `%s`",
+                 active_funcs[func_idx]->display_name.c_str());
+    return active_funcs[func_idx];
+}
+
 Err AnalyzeImports(Target &target) {
     Err err{};
 
@@ -78,8 +113,7 @@ Err DoIATXrefsSearch(Target &target) {
             ((instr.id == X86_INS_CALL || instr.id == X86_INS_LCALL) &&
              instr.detail->x86.operands[0].type == X86_OP_IMM) ||
             ((instr.id == X86_INS_CALL || instr.id == X86_INS_LCALL) &&
-             instr.detail->x86.operands[0].type == X86_OP_MEM &&
-             instr.detail->x86.operands[0].mem.segment == X86_REG_DS)) {
+             instr.detail->x86.operands[0].type == X86_OP_MEM)) {
             calls.push_back(i);
 
             logger::Okay("[%d] Found call at 0x%llx", i, instr.address);
@@ -100,12 +134,11 @@ Err DoIATXrefsSearch(Target &target) {
         if (call_instr.detail->x86.operands[0].type == X86_OP_IMM) {
             logger::Debug("immediate call found");
             call_addr = call_instr.detail->x86.operands[0].imm;
-        } else if (call_instr.detail->x86.operands[0].type == X86_OP_MEM &&
-                   call_instr.detail->x86.operands[0].mem.segment ==
-                       X86_REG_DS) {
-            auto mem = call_instr.detail->x86.operands[0].mem;
+        } else if (call_instr.detail->x86.operands[0].type == X86_OP_MEM) {
             logger::Debug("call to data degment found");
-            call_addr = mem.base + mem.disp;
+            call_addr =
+                static_analysis::disassembler::SolveMemAddress(&call_instr);
+            logger::Debug("addr value: 0x%llx", call_addr);
         } else {
             if ((call_instr.address & 0xfffff) ==
                     config::Get().static_analysis.inspect_address ||
@@ -142,13 +175,11 @@ Err DoIATXrefsSearch(Target &target) {
             call_addr = call_instr.address + call_instr.size + offset;
         }
         logger::Debug("Target address: 0x%llx", call_addr);
-        if (!target.bin_info->AddressInSection(call_addr, ".rdata")) {
-            continue;
-        }
         for (auto &[_, funcs] : target.imports) {
             for (auto &func : funcs) {
                 for (const auto &xref : func.xrefs) {
-                    if (xref == call_addr) {
+                    if (xref == call_addr ||
+                        xref == call_addr - target.bin_info->ImageBase()) {
                         func.xrefs.push_back(call_instr.address);
                         logger::Okay(
                             "Found call to %s at 0x%llx",
@@ -263,10 +294,63 @@ void Run() {
                               config::Get().static_analysis.inspect_address);
             } else {
                 logger::Info("Inspecting node 0x%llx", node->block.address);
-                std::cout << target.disassembly.GetString(
-                    node->block.real_address, node->block.size,
-                    target.strings_map);
+                std::cout << target.GetString(node->block.real_address,
+                                              node->block.size);
             }
+        }
+
+        const Function *func{};
+        if (config::Get().static_analysis.sink_target.empty()) {
+            func = SelectTargetFunction(target, Tag::Sink);
+        } else {
+            for (const auto &[_, funcs] : target.imports) {
+                for (const auto &f : funcs) {
+                    if (f.display_name ==
+                        config::Get().static_analysis.sink_target) {
+                        func = &f;
+                        goto outer_break;
+                    }
+                }
+            }
+        }
+outer_break:
+
+        if (!func) {
+            logger::Error("Invalid target function selected: `%s`",
+                          config::Get().static_analysis.sink_target.c_str());
+            return;
+        } else {
+            logger::Okay("Active target function: `%s`",
+                         func->display_name.c_str());
+        }
+
+        std::map<u64, std::vector<u64>> paths;
+        auto xrefs = target.cfg.FindXrefs(func->display_name);
+        if (xrefs.size() == 0) {
+            logger::Error("No references found");
+        } else {
+            logger::Okay("%d references found", xrefs.size());
+        }
+        for (const auto &xref : xrefs) {
+            paths[xref] = target.cfg.FindShortestPath(
+                target.bin_info->EntryPoint(), xref);
+            if (paths.at(xref).size() == 0) {
+                paths.erase(xref);
+            }
+        }
+
+        logger::Info("%d paths found", paths.size());
+
+        for (const auto &[t, path] : paths) {
+            logger::Info("=== PATH TO 0x%llx ===", t);
+            if (t != 0x110a) continue;
+            std::cout << std::hex;
+            for (const auto &vertex : path) {
+                std::cout << "==============================\n";
+                std::cout << target.GetString(
+                    vertex, target.cfg.FindNode(vertex)->block.size);
+            }
+            std::cout << "\n\n";
         }
     }
     logger::Okay("All done. Closing");

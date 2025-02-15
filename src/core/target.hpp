@@ -19,7 +19,8 @@ enum class Tag : u8 {
     Sink = 1 << 1,
     Trigger = 1 << 2,
     Masking = 1 << 3,
-    Count
+    Count,
+    Any = u8_max,
 };
 
 const std::map<Tag, std::string> TagName{
@@ -73,6 +74,8 @@ struct Target {
 
     std::string GetFunctionNameByAddress(u64 address);
     std::string GetEnrichedDisassembly(u64 address = 0, usize size = 0);
+
+    std::string GetString(u64 addr, usize size);
 
     explicit Target(const std::string &filename);
 

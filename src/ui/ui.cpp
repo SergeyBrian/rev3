@@ -144,9 +144,9 @@ void DrawCode() {
     ImGui::Begin("Disasm view");
     for (const auto &[addr, node] : target->cfg.nodes) {
         ImGui::Text("=== 0x%llx ===", node->block.address);
-        ImGui::Text("%s", target->disassembly
-                              .GetString(node->block.address, node->block.size)
-                              .c_str());
+        ImGui::Text(
+            "%s",
+            target->GetString(node->block.address, node->block.size).c_str());
     }
     ImGui::End();
 }

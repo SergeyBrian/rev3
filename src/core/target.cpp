@@ -65,4 +65,54 @@ std::string Target::GetEnrichedDisassembly(u64 address, usize size) {
     enriched_disassembly_cache[address][init_size] = res.str();
     return res.str();
 }
+
+static std::map<u64, std::map<u64, std::string>> strings_cache;
+
+std::string Target::GetString(u64 addr, usize size) {
+    auto it = disassembly.instr_map.lower_bound(addr);
+    if (size == 0) size += it->second->size;
+    if (strings_cache.contains(addr) && strings_cache[addr].contains(size)) {
+        return strings_cache.at(addr).at(size);
+    }
+
+    std::stringstream ss;
+    for (; it != disassembly.instr_map.end(); it = std::next(it)) {
+        const auto &[address, instr] = *it;
+        if (instr->address >= addr + size) break;
+        ss << std::hex << "0x" << address << "\t" << instr->mnemonic << " "
+           << instr->op_str;
+        u8 op_count = instr->detail->x86.op_count;
+        auto ops = instr->detail->x86.operands;
+        bool call_processed = false;
+        for (u8 i = 0; i < op_count; i++) {
+            u64 addr{};
+            if (ops[i].type == X86_OP_MEM) {
+                addr = static_analysis::disassembler::SolveMemAddress(instr);
+            } else if (ops[i].type == X86_OP_IMM) {
+                addr = ops[i].imm;
+            }
+
+            if (strings_map.contains(addr)) {
+                ss << COLOR_BLUE << "\t`" << strings_map.at(addr) << "` "
+                   << COLOR_RESET;
+            }
+            if (!call_processed) {
+                call_processed = true;
+                for (const auto &[_, funcs] : imports) {
+                    for (const auto &func : funcs) {
+                        for (const auto &xref : func.xrefs) {
+                            if (addr == xref + bin_info->ImageBase()) {
+                                ss << COLOR_YELLOW << "\t[" << func.display_name
+                                   << "]" << COLOR_RESET;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        ss << "\n";
+    }
+    strings_cache[addr][size] = ss.str();
+    return ss.str();
+}
 }  // namespace core
