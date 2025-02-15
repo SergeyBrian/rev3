@@ -64,14 +64,6 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(glfw)
 
-FetchContent_Declare(
-    imnodes
-    GIT_REPOSITORY https://github.com/Nelarius/imnodes
-    GIT_TAG v0.5
-)
-
-FetchContent_MakeAvailable(imnodes)
-
 if (MSVC)
     add_compile_options(/W4 /WX /wd4477 /wd4005)
 else()
@@ -126,10 +118,6 @@ set(imgui_source
 
     ${imgui_SOURCE_DIR}/backends/imgui_impl_glfw.cpp
     ${imgui_SOURCE_DIR}/backends/imgui_impl_opengl3.cpp
-
-    ${imnodes_SOURCE_DIR}/imnodes.cpp
-    ${imnodes_SOURCE_DIR}/imnodes.h
-    ${imnodes_SOURCE_DIR}/imnodes_internal.h
 )
 
 add_executable(${CMAKE_PROJECT_NAME} src/main.cpp
@@ -151,10 +139,10 @@ cxxopts LIEF::LIEF nlohmann_json::nlohmann_json capstone glfw OpenGL::GL
 )
 
 target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE ${libs})
-target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE ${imgui_SOURCE_DIR} ${imnodes_SOURCE_DIR})
+target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE ${imgui_SOURCE_DIR})
 
 target_link_libraries(${CMAKE_PROJECT_NAME}x32 PRIVATE ${libs})
-target_include_directories(${CMAKE_PROJECT_NAME}x32 PRIVATE ${imgui_SOURCE_DIR} ${imnodes_SOURCE_DIR})
+target_include_directories(${CMAKE_PROJECT_NAME}x32 PRIVATE ${imgui_SOURCE_DIR})
 target_compile_definitions(${CMAKE_PROJECT_NAME}x32 PRIVATE X86_BUILD)
 
 add_compile_definitions(IMGUI_ENABLE_DOCKING IMGUI_DEFINE_MATH_OPERATORS)

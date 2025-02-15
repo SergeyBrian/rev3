@@ -4,7 +4,6 @@
 #include <queue>
 
 #include <imgui.h>
-#include "imnodes.h"
 #include "backends/imgui_impl_glfw.h"
 #include "backends/imgui_impl_opengl3.h"
 #include <GLFW/glfw3.h>
@@ -141,53 +140,6 @@ std::map<u64, ImVec2> GenerateNodePositions(
     return positions;
 }
 
-void DrawNodes() {
-    ImGui::Begin("Graph view");
-    ImNodes::BeginNodeEditor();
-    for (const auto &[addr, node] : target->cfg.nodes) {
-        nodes_map[addr] = unique_id;
-        ImNodes::BeginNode(unique_id++);
-        ImNodes::BeginNodeTitleBar();
-        ImGui::Text("Node 0x%llx%s", addr,
-                    (node->label.empty()) ? "" : (" @ " + node->label).c_str());
-        ImNodes::EndNodeTitleBar();
-        ImNodes::BeginInputAttribute(unique_id++);
-        ImNodes::EndInputAttribute();
-        ImGui::Text("%s", target->disassembly
-                              .GetString(node->block.address, node->block.size)
-                              .c_str());
-        for (const auto &edge : node->out_edges) {
-            ImNodes::BeginOutputAttribute(unique_id++);
-            ImGui::Text("%s -> 0x%llx",
-                        core::static_analysis::EdgeTypeStr(edge.type).c_str(),
-                        edge.target->block.address);
-            ImNodes::EndOutputAttribute();
-        }
-        ImNodes::EndNode();
-    }
-    for (const auto &[_, node] : target->cfg.nodes) {
-        u64 edge_id = nodes_map.at(node->block.address) + 1;
-        for (const auto &edge : node->out_edges) {
-            u64 dest_node_id = nodes_map.at(edge.target->block.address);
-
-            ImNodes::Link(unique_id++, ++edge_id, dest_node_id + 1);
-        }
-    }
-
-    u64 entryNodeId = target->cfg.nodes.at(0x1000)->block.address;
-
-    if (positions.empty()) {
-        positions = GenerateNodePositions(target->cfg.nodes, entryNodeId);
-
-        for (auto &[nodeId, pos] : positions) {
-            ImNodes::SetNodeGridSpacePos(nodes_map.at(nodeId), pos);
-        }
-    }
-
-    ImNodes::EndNodeEditor();
-    ImGui::End();
-}
-
 void DrawCode() {
     ImGui::Begin("Disasm view");
     for (const auto &[addr, node] : target->cfg.nodes) {
@@ -212,8 +164,6 @@ void OnFrame() {
                      ImGuiWindowFlags_NoNavFocus);
     ImGui::DockSpace(ImGui::GetID("MainDockspace"));
     DrawImportsTable();
-    /*DrawNodes();*/
-    DrawCode();
     ImGui::End();
 }
 
@@ -232,9 +182,6 @@ void Run() {
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_ANY_PROFILE);
 
     glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
-    /*glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER, GLFW_TRUE);*/
-    /*glfwWindowHint(GLFW_DECORATED, GLFW_FALSE);*/
-    /*glfwWindowHint(GLFW_FLOATING, GLFW_TRUE);*/
 
 #if __APPLE__
     glfwWindowHint(GLFW_SCALE_TO_MONITOR, GLFW_TRUE);
@@ -266,7 +213,6 @@ void Run() {
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
-    ImNodes::CreateContext();
     ImGuiIO &io = ImGui::GetIO();
     (void)io;
 
@@ -313,7 +259,6 @@ void Run() {
 
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
-    ImNodes::DestroyContext();
     ImGui::DestroyContext();
     glfwDestroyWindow(window);
     glfwTerminate();

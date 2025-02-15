@@ -1,6 +1,8 @@
 #include "control.hpp"
 
 #include <algorithm>
+#include <unordered_set>
+#include <queue>
 
 #include "capstone/capstone.h"
 
@@ -188,6 +190,11 @@ Err ControlFlowGraph::Build(disassembler::Disassembly *disas, BinInfo *bin,
         if (node->returns && node->block.address >= SectionBase &&
             node->callers.empty()) {
             logger::Warn("Node 0x%llx returns but is never called", addr);
+        }
+        if (node->returns && node->out_edges.empty()) {
+            logger::Warn(
+                "Node 0x%llx is marked returning but has no outgoing edges",
+                node->block.address);
         }
     }
 
@@ -648,7 +655,9 @@ CFGNode *ControlFlowGraph::AddNode(CFGNode *node,
     // eventually returns, corresponding edge is correctly added.
     if (type == CFGEdgeType::Jmp || type == CFGEdgeType::Jcc) {
         for (const auto caller : node->callers) {
-            new_node_ptr->callers.push_back(caller);
+            if (!utils::contains(new_node_ptr->callers, caller)) {
+                new_node_ptr->callers.push_back(caller);
+            }
         }
         logger::Debug("New callers:");
         for (const auto caller : new_node_ptr->callers) {
@@ -669,10 +678,18 @@ CFGNode *ControlFlowGraph::AddNode(CFGNode *node,
             u64 next_addr = last_addr + last_instr->size;
             auto second_node = InsertNode(next_addr);
 
+            for (const auto caller : node->callers) {
+                if (!utils::contains(second_node->callers, caller)) {
+                    second_node->callers.push_back(caller);
+                }
+            }
+
             cond.inverted = true;
             AddEdge(node, second_node, type, cond);
 
-            auto tmp = AddNode(nodes.at(next_addr).get(), disas, bin);
+            logger::Debug("Processing branch without jump first (0x%llx)",
+                          next_addr);
+            auto tmp = AddNode(second_node, disas, bin);
             while (tmp) {
                 tmp = AddNode(tmp, disas, bin);
             }
@@ -694,8 +711,8 @@ CFGNode *ControlFlowGraph::AddNode(CFGNode *node,
                     AddEdge(new_node_ptr, caller, CFGEdgeType::Ret);
                 }
             }
-            if (!new_node_ptr->returns) {
-                for (const auto caller : node->callers) {
+            for (const auto caller : node->callers) {
+                if (!utils::contains(return_node->callers, caller)) {
                     return_node->callers.push_back(caller);
                 }
             }
@@ -800,4 +817,57 @@ std::unique_ptr<ControlFlowGraph> ControlFlowGraph::MakeCFG(
 }
 
 CFGNode::~CFGNode() = default;
+
+std::vector<u64> ControlFlowGraph::FindShortestPath(
+    u64 start, u64 end, disassembler::Disassembly *disas) {
+    logger::Debug("Searching for shortest path to 0x%llx", end);
+    std::unordered_map<CFGNode *, CFGNode *> previous;
+    std::unordered_set<CFGNode *> visited;
+    std::queue<CFGNode *> q{};
+    std::vector<u64> path;
+
+    CFGNode *startNode = FindNode(start);
+    CFGNode *endNode = FindNode(end);
+
+    if (!startNode || !endNode) {
+        logger::Error("Invalid FindShortestPath arguments");
+        return path;
+    }
+
+    q.push(startNode);
+    visited.insert(startNode);
+
+    while (!q.empty()) {
+        CFGNode *current = q.front();
+        std::cout << disas->GetString(current->block.address,
+                                      current->block.size);
+        logger::Debug("0x%llx; => %d", current->block.address,
+                      current->out_edges.size());
+        q.pop();
+        logger::Debug("Remaining verticies: %d", q.size());
+
+        if (current == endNode) {
+            while (current != nullptr) {
+                path.push_back(current->block.address);
+                current = previous[current];
+            }
+            std::reverse(path.begin(), path.end());
+            return path;
+        }
+
+        for (const auto &edge : current->out_edges) {
+            auto neighbor = edge.target;
+            logger::Debug("\t-> 0x%llx [0x%llx] (%s)", neighbor->block.address,
+                          neighbor->block.real_address,
+                          EdgeTypeStr(edge.type).c_str());
+            if (visited.find(neighbor) == visited.end()) {
+                visited.insert(neighbor);
+                previous[neighbor] = current;
+                q.push(neighbor);
+            }
+        }
+    }
+
+    return path;
+}
 }  // namespace core::static_analysis
