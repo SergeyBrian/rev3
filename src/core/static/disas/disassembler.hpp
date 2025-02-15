@@ -17,7 +17,8 @@ struct Disassembly {
     usize count;
 
     Err Disassemble(const byte *ptr, usize size);
-    std::string GetString(u64 addr, usize size = 0);
+    std::string GetString(u64 addr, usize size = 0,
+                          std::map<u64, std::string> strings = {});
     void RegAccess(u64 instr_addr, cs_regs reg_write, u8 *reg_write_count,
                    cs_regs reg_read, u8 *reg_read_count);
     void RegAccess(const cs_insn *instr, cs_regs reg_write, u8 *reg_write_count,

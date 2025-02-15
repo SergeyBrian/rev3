@@ -107,6 +107,8 @@ set(core
     src/core/bin.cpp
     src/core/static/parser/lief_bin.hpp
     src/core/static/parser/lief_bin.cpp
+    src/core/static/strings/strings.hpp
+    src/core/static/strings/strings.cpp
 )
 
 set(imgui_source

@@ -10,6 +10,7 @@
 #include "output.hpp"
 #include "static/parser/parser.hpp"
 #include "static/control/control.hpp"
+#include "static/strings/strings.hpp"
 
 namespace core {
 static std::vector<Target> targets{};
@@ -184,6 +185,8 @@ void Run() {
             continue;
         }
 
+        static_analysis::FindStrings(target);
+
         if (config::Get().static_analysis.do_imports_print) {
             output::PrintImports(target);
             continue;
@@ -250,6 +253,20 @@ void Run() {
         if (target.cfg.nodes.size() <= 1) {
             logger::Error(
                 "Something went wrong during build of control flow graph");
+        }
+
+        if (config::Get().static_analysis.inspect_address) {
+            auto node = target.cfg.FindNode(
+                config::Get().static_analysis.inspect_address);
+            if (!node) {
+                logger::Error("Can't inspect node at 0x%llx",
+                              config::Get().static_analysis.inspect_address);
+            } else {
+                logger::Info("Inspecting node 0x%llx", node->block.address);
+                std::cout << target.disassembly.GetString(
+                    node->block.real_address, node->block.size,
+                    target.strings_map);
+            }
         }
     }
     logger::Okay("All done. Closing");

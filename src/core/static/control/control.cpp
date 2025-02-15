@@ -818,8 +818,7 @@ std::unique_ptr<ControlFlowGraph> ControlFlowGraph::MakeCFG(
 
 CFGNode::~CFGNode() = default;
 
-std::vector<u64> ControlFlowGraph::FindShortestPath(
-    u64 start, u64 end, disassembler::Disassembly *disas) {
+std::vector<u64> ControlFlowGraph::FindShortestPath(u64 start, u64 end) {
     logger::Debug("Searching for shortest path to 0x%llx", end);
     std::unordered_map<CFGNode *, CFGNode *> previous;
     std::unordered_set<CFGNode *> visited;
@@ -839,8 +838,6 @@ std::vector<u64> ControlFlowGraph::FindShortestPath(
 
     while (!q.empty()) {
         CFGNode *current = q.front();
-        std::cout << disas->GetString(current->block.address,
-                                      current->block.size);
         logger::Debug("0x%llx; => %d", current->block.address,
                       current->out_edges.size());
         q.pop();

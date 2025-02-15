@@ -46,12 +46,23 @@ struct Section {
     usize virtual_size;
 };
 
+struct String {
+    enum class Type : u8 {
+        Data,
+    } type;
+    std::string content;
+
+    u64 address;
+};
+
 struct Target {
     std::string filename;
     std::string display_name;
     std::map<std::string, std::vector<Function>> imports;
     std::vector<Section> sections;
     std::map<u64, Function *> functions;
+    std::vector<String> strings;
+    std::map<u64, std::string> strings_map;
 
     Section text;
 

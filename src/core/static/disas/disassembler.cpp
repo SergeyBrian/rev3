@@ -18,6 +18,8 @@
 namespace core::static_analysis::disassembler {
 static const u64 MaxRegSearchOffset = 10;
 
+u64 SolveMemAddress(const cs_insn *instr);
+
 Err Disassembly::Disassemble(const byte *ptr, usize size) {
     Err err{};
 
@@ -42,7 +44,8 @@ Disassembly::Disassembly() {
 
 static std::map<u64, std::map<u64, std::string>> strings_cache;
 
-std::string Disassembly::GetString(u64 addr, usize size) {
+std::string Disassembly::GetString(u64 addr, usize size,
+                                   std::map<u64, std::string> strings) {
     auto it = instr_map.lower_bound(addr);
     if (size == 0) size += it->second->size;
     if (strings_cache.contains(addr) && strings_cache[addr].contains(size)) {
@@ -54,7 +57,23 @@ std::string Disassembly::GetString(u64 addr, usize size) {
         const auto &[address, instr] = *it;
         if (instr->address >= addr + size) break;
         ss << std::hex << "0x" << address << "\t" << instr->mnemonic << " "
-           << instr->op_str << "\n";
+           << instr->op_str;
+        u8 op_count = instr->detail->x86.op_count;
+        auto ops = instr->detail->x86.operands;
+        for (u8 i = 0; i < op_count; i++) {
+            u64 addr{};
+            if (ops[i].type == X86_OP_MEM) {
+                addr = SolveMemAddress(instr);
+            } else if (ops[i].type == X86_OP_IMM) {
+                addr = ops[i].imm;
+            }
+
+            if (strings.contains(addr)) {
+                ss << COLOR_BLUE << "\t`" << strings.at(addr) << "` "
+                   << COLOR_RESET;
+            }
+        }
+        ss << "\n";
     }
     strings_cache[addr][size] = ss.str();
     return ss.str();
@@ -118,7 +137,6 @@ i64 ParseOffsetPtr(const char *opstr) {
 
 u64 FindRegValue(x86_reg reg, const cs_insn *instr) {
     for (u64 i = 0; i < MaxRegSearchOffset; i++, instr--) {
-        Print(instr, 1);
         if (!strstr(instr->mnemonic, "mov") &&
             !strstr(instr->mnemonic, "lea")) {
             continue;
@@ -130,7 +148,10 @@ u64 FindRegValue(x86_reg reg, const cs_insn *instr) {
             continue;
         }
         if (x86.operands[0].reg != reg) continue;
-        if (x86.operands[1].type == X86_OP_IMM) return x86.operands[1].imm;
+        if (x86.operands[1].type == X86_OP_IMM) {
+            logger::Okay("Found reg value");
+            return x86.operands[1].imm;
+        }
         return FindRegValue(x86.operands[1].reg, instr);
     }
     logger::Warn("Failed to find reg value within %d instructions",
@@ -139,28 +160,38 @@ u64 FindRegValue(x86_reg reg, const cs_insn *instr) {
     return 0;
 }
 
-u64 SolveMemValue(const cs_insn *instr, BinInfo *bin) {
-    auto op = instr->detail->x86.operands[0];
+u64 SolveMemAddress(const cs_insn *instr) {
+    cs_x86_op op{};
+    for (u8 i = 0; i < instr->detail->x86.op_count; i++) {
+        op = instr->detail->x86.operands[i];
+        if (op.type == X86_OP_MEM) break;
+    }
     auto reg = op.mem.base;
     auto offset = op.mem.disp;
 
     u64 reg_val{};
 
-    if (reg == X86_REG_RIP) {
+    if (reg == X86_REG_INVALID) {
+        reg_val = 0;
+    } else if (reg == X86_REG_RIP) {
         reg_val = instr->address + instr->size;
     } else {
         reg_val = FindRegValue(reg, instr);
+        if (!reg_val) return 0;
     }
-    if (!reg_val) return 0;
 
-    u64 mem_addr = reg_val + offset;
+    logger::Okay("Found mem address: 0x%llx", reg_val + offset);
+    return reg_val + offset;
+}
+
+u64 SolveMemValue(const cs_insn *instr, BinInfo *bin) {
+    u64 mem_addr = SolveMemAddress(instr);
 
     const u8 *mem = bin->Data(mem_addr, 8);
     if (!mem) {
         logger::Warn("Failed to read memory at 0x%llx", mem_addr);
         return 0;
     }
-    logger::Okay("Found address in memory: 0x%llx", mem);
     return *reinterpret_cast<const u64 *>(mem);
 }
 
