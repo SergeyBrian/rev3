@@ -79,6 +79,10 @@ template <typename... Args>
 inline void Debug(const char *format, Args... args) {
 #ifndef NDEBUG
     Log(LogType::Debug, format, args...);
+#else
+    if constexpr (sizeof...(args) > 0) {
+        (void)format;
+    }
 #endif
 }
 

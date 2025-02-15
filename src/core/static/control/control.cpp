@@ -235,8 +235,10 @@ void ControlFlowGraph::AddEdge(CFGNode *from, CFGNode *to, CFGEdgeType type,
                                Condition condition) {
     logger::Debug("\t0x%llx >>[%s]>> 0x%llx", from->block.address,
                   EdgeTypeStr(type).c_str(), to->block.address);
+#ifndef NDEBUG
     u64 from_before = from->out_edges.size();
     u64 to_before = to->in_edges.size();
+#endif
     from->out_edges.push_back({
         .type = type,
         .target = to,
@@ -249,8 +251,10 @@ void ControlFlowGraph::AddEdge(CFGNode *from, CFGNode *to, CFGEdgeType type,
         .source = from,
         .condition = condition,
     });
+#ifndef NDEBUG
     u64 from_after = from->out_edges.size();
     u64 to_after = to->in_edges.size();
+#endif
 
     assert(from_before < from_after);
     assert(to_before < to_after);
