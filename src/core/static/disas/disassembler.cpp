@@ -115,7 +115,7 @@ u64 FindRegValue(x86_reg reg, const cs_insn *instr) {
         if (x86.operands[1].type == X86_OP_IMM) {
             return x86.operands[1].imm;
         }
-        return FindRegValue(x86.operands[1].reg, instr);
+        return FindRegValue(x86.operands[1].reg, instr - 1);
     }
 
     return 0;

@@ -567,9 +567,12 @@ Condition MakeCondition(cs_insn *instr, disassembler::Disassembly *disas,
     return res;
 }
 
+u64 depth = 0;
 CFGNode *ControlFlowGraph::AddNode(CFGNode *node,
                                    disassembler::Disassembly *disas,
                                    BinInfo *bin) {
+    depth++;
+    logger::Debug("Recursion depth: %d", depth);
     // Processes a node and returns pointer to the next node to process
     if (!disas->instr_map.contains(node->block.address)) {
         logger::Warn("Reference to invalid address 0x%llx!",
@@ -579,6 +582,7 @@ CFGNode *ControlFlowGraph::AddNode(CFGNode *node,
                 AddEdge(node, caller, CFGEdgeType::Ret);
             }
         }
+        depth--;
         return nullptr;
     } else {
         logger::Okay("Processing block at 0x%llx", node->block.address);
@@ -600,6 +604,7 @@ CFGNode *ControlFlowGraph::AddNode(CFGNode *node,
     }
     if (it == disas->instr_map.end()) {
         logger::Error("Reached end of instructions (weird)");
+        depth--;
         return nullptr;
     }
     logger::Debug("Ending block on instr %s with size %d", last_instr->mnemonic,
@@ -622,11 +627,13 @@ CFGNode *ControlFlowGraph::AddNode(CFGNode *node,
             auto tmp = InsertFakeNode(new_address);
             if (!tmp) {
                 logger::Error("Insert fake node returned 0");
+                depth--;
                 return nullptr;
             }
             new_address = tmp->block.address;
         } else {
             logger::Warn("Node 0x%llx skipped", new_address);
+            depth--;
             return nullptr;
         }
     } else {
@@ -734,13 +741,16 @@ CFGNode *ControlFlowGraph::AddNode(CFGNode *node,
                 logger::Debug("Caller 0x%llx", caller->block.address);
                 AddEdge(node, caller, type);
             }
+            depth--;
             return nullptr;
             break;
         case CFGEdgeType::Int:
         case CFGEdgeType::Invalid:
+            depth--;
             return nullptr;
     }
 
+    depth--;
     return (target_exists && new_node_ptr->block.size != 0) ? nullptr
                                                             : new_node_ptr;
 }
@@ -838,10 +848,7 @@ std::vector<u64> ControlFlowGraph::FindShortestPath(u64 start, u64 end) {
 
     while (!q.empty()) {
         CFGNode *current = q.front();
-        logger::Debug("0x%llx; => %d", current->block.address,
-                      current->out_edges.size());
         q.pop();
-        logger::Debug("Remaining verticies: %d", q.size());
 
         if (current == endNode) {
             while (current != nullptr) {
@@ -854,9 +861,6 @@ std::vector<u64> ControlFlowGraph::FindShortestPath(u64 start, u64 end) {
 
         for (const auto &edge : current->out_edges) {
             auto neighbor = edge.target;
-            logger::Debug("\t-> 0x%llx [0x%llx] (%s)", neighbor->block.address,
-                          neighbor->block.real_address,
-                          EdgeTypeStr(edge.type).c_str());
             if (visited.find(neighbor) == visited.end()) {
                 visited.insert(neighbor);
                 previous[neighbor] = current;
