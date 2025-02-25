@@ -14,6 +14,8 @@ namespace core::static_analysis {
 struct BaseBlock {
     u64 address;
     u64 real_address;
+    // Address of instruction directly after current block
+    u64 next_address;
     usize size{};
 };
 
@@ -85,8 +87,8 @@ struct Operand {
     u64 mem_address{};
 
     Operand() = default;
-    Operand(Register reg) : type(Type::Register), reg(reg){};
-    Operand(u64 constant) : type(Type::Constant), constant(constant){};
+    Operand(Register reg) : type(Type::Register), reg(reg) {};
+    Operand(u64 constant) : type(Type::Constant), constant(constant) {};
 };
 
 struct RegCmpCondition {
@@ -121,6 +123,10 @@ struct CFGEdge {
     CFGNode *source;
 
     Condition condition;
+
+#ifndef NDEBUG
+    void Log() const;
+#endif
 };
 
 struct CFGNode {
@@ -163,7 +169,6 @@ struct ControlFlowGraph {
     static std::unique_ptr<ControlFlowGraph> MakeCFG(
         std::vector<core::static_analysis::BaseBlock> blocks,
         std::vector<EdgeTemplate> edges);
-    std::vector<u64> FindShortestPath(u64 start, u64 end);
     std::vector<u64> FindXrefs(std::string label);
 
 private:

@@ -343,7 +343,6 @@ outer_break:
 
         for (const auto &[t, path] : paths) {
             logger::Info("=== PATH TO 0x%llx ===", t);
-            if (t != 0x110a) continue;
             std::cout << std::hex;
             for (const auto &vertex : path) {
                 std::cout << "==============================\n";

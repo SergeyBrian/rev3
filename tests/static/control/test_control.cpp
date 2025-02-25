@@ -644,3 +644,66 @@ TEST(CFGTest, TestBadCall) {
     ASSERT_NE(expected, nullptr);
     DoCfgTest(expected.get(), code, sizeof(code));
 }
+
+TEST(CFGTest, TestCallLoop) {
+    /*
+     * This is currently expected behaviour since blocks are created based
+     * solely on call/jmp/ret instructions and edges can only lead to beginning
+     * of a node
+     */
+    const u8 code[] = {
+        /*
+        0000000000000000 <block1>:
+        0:  48 c7 c0 05 00 00 00    mov    rax,0x5
+        0000000000000007 <block2>:
+        7:  48 ff c8                dec    rax
+        a:  48 85 c0                test   rax,rax
+        d:  75 f8                   jne    7 <block1>
+        000000000000000f <block3>:
+        f:  cc                      int3
+        */
+        0x48, 0xC7, 0xC0, 0x05, 0x00, 0x00, 0x00, 0x48,
+        0xFF, 0xC8, 0x48, 0x85, 0xC0, 0x75, 0xF8, 0xCC,
+    };
+
+    auto expected = ControlFlowGraph::MakeCFG(
+        {
+            {
+                .address = 0x1000,
+                .size = 7 + 3 + 3 + 2,
+            },
+            {
+                .address = 0x1000 + 7,
+                .size = 3 + 3 + 2,
+            },
+            {
+                .address = 0x1000 + 7 + 3 + 3 + 2,
+                .size = 1,
+            },
+        },
+        {
+            {
+                .from = 0x1000,
+                .to = 0x1000 + 7,
+                .type = CFGEdgeType::Jcc,
+            },
+            {
+                .from = 0x1000,
+                .to = 0x1000 + 7 + 3 + 3 + 2,
+                .type = CFGEdgeType::Jcc,
+            },
+            {
+                .from = 0x1000 + 7,
+                .to = 0x1000 + 7,
+                .type = CFGEdgeType::Jcc,
+            },
+            {
+                .from = 0x1000 + 7,
+                .to = 0x1000 + 7 + 3 + 3 + 2,
+                .type = CFGEdgeType::Jcc,
+            },
+        });
+
+    ASSERT_NE(expected, nullptr);
+    DoCfgTest(expected.get(), code, sizeof(code));
+}

@@ -141,6 +141,11 @@ CFGEdgeType GetEdgeType(u16 opcode) {
     }
 }
 
+void CFGEdge::Log() const {
+    logger::Debug("0x%llx ==%s==> 0x%llx", source->block.address,
+                  EdgeTypeStr(type).c_str(), target->block.address);
+}
+
 void Deduplicate(std::vector<CFGEdge> &edges) {
     std::sort(edges.begin(), edges.end(),
               [](const CFGEdge &a, const CFGEdge &b) {
@@ -234,7 +239,7 @@ CFGNode *ControlFlowGraph::FindNodeContaining(u64 address) const {
 
 void ControlFlowGraph::AddEdge(CFGNode *from, CFGNode *to, CFGEdgeType type,
                                Condition condition) {
-    logger::Debug("\t0x%llx >>[%s]>> 0x%llx", from->block.address,
+    logger::Debug("\t0x%llx ==%s==> 0x%llx", from->block.address,
                   EdgeTypeStr(type).c_str(), to->block.address);
 #ifndef NDEBUG
     u64 from_before = from->out_edges.size();
@@ -616,6 +621,7 @@ CFGNode *ControlFlowGraph::AddNode(CFGNode *node,
                   last_instr->size);
 
     node->block.size = last_addr + last_instr->size - node->block.address;
+    node->block.next_address = node->block.real_address + node->block.size;
 
     CFGEdgeType type = GetEdgeType(last_instr->id);
 
@@ -833,49 +839,28 @@ std::unique_ptr<ControlFlowGraph> ControlFlowGraph::MakeCFG(
 
 CFGNode::~CFGNode() = default;
 
-std::vector<u64> ControlFlowGraph::FindShortestPath(u64 start, u64 end) {
-    logger::Debug("Searching for shortest path to 0x%llx", end);
-    std::unordered_map<CFGNode *, CFGNode *> previous;
-    std::unordered_set<CFGNode *> visited;
-    std::queue<CFGNode *> q{};
-    std::vector<u64> path;
+// Vertex represents a node in a denormalized graph. A returning node, that has
+// multiple callers, will create a Vertex for each caller and this vertex will
+// only return to correcponding node
+struct Vertex {
+    CFGNode *node;
 
-    CFGNode *startNode = FindNode(start);
-    CFGNode *endNode = FindNode(end);
+    std::vector<CFGNode *> in;
+    std::vector<CFGNode *> out;
 
-    if (!startNode || !endNode) {
-        logger::Error("Invalid FindShortestPath arguments");
-        return path;
-    }
-
-    q.push(startNode);
-    visited.insert(startNode);
-
-    while (!q.empty()) {
-        CFGNode *current = q.front();
-        q.pop();
-
-        if (current == endNode) {
-            while (current != nullptr) {
-                path.push_back(current->block.address);
-                current = previous[current];
-            }
-            std::reverse(path.begin(), path.end());
-            return path;
+    Vertex(CFGNode *node) : node(node) {
+        assert(node->callers.size() <= 1 &&
+               "Vertex(CFGNode *) constructor can only be used on nodes with "
+               "no more than one caller");
+        for (const auto &edge : node->in_edges) {
+            in.push_back(edge.source);
         }
-
-        for (const auto &edge : current->out_edges) {
-            auto neighbor = edge.target;
-            if (visited.find(neighbor) == visited.end()) {
-                visited.insert(neighbor);
-                previous[neighbor] = current;
-                q.push(neighbor);
-            }
+        for (const auto &edge : node->out_edges) {
+            in.push_back(edge.target);
         }
     }
+};
 
-    return path;
-}
 std::vector<u64> ControlFlowGraph::FindXrefs(std::string label) {
     std::vector<u64> res{};
 
