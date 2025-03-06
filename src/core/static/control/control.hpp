@@ -12,10 +12,10 @@
 
 namespace core::static_analysis {
 struct BaseBlock {
-    u64 address;
-    u64 real_address;
+    u64 address{};
+    u64 real_address{};
     // Address of instruction directly after current block
-    u64 next_address;
+    u64 next_address{};
     usize size{};
 };
 
@@ -118,11 +118,11 @@ std::string EdgeTypeStr(CFGEdgeType type);
 struct CFGNode;
 
 struct CFGEdge {
-    CFGEdgeType type;
-    CFGNode *target;
-    CFGNode *source;
+    CFGEdgeType type{};
+    CFGNode *target{};
+    CFGNode *source{};
 
-    Condition condition;
+    Condition condition{};
 
 #ifndef NDEBUG
     void Log() const;

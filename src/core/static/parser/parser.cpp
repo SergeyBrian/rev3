@@ -40,6 +40,9 @@ Err ParseBinary(Target &target) {
     logger::Debug("Entrypoint: 0x%llx", result->entrypoint());
     logger::Debug("Image base: 0x%llx", result->imagebase());
 
+    logger::Debug("Range for valid pointers: from 0x%llx to 0x%llx",
+                  result->imagebase(),
+                  result->imagebase() + result->virtual_size());
     logger::Okay("Parsing done");
 
     for (const auto &section : result->sections()) {

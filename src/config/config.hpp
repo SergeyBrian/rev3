@@ -30,6 +30,7 @@ public:
     bool verbose_logs;
     StaticAnalysisConfig static_analysis;
     bool ui;
+    bool do_disasm_fixes;
 
     Config(const Config &) = delete;
     Config &operator=(const Config &) = delete;

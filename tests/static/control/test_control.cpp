@@ -60,14 +60,16 @@ void CompareGraphs(core::static_analysis::ControlFlowGraph *g1,
 }
 
 void DoCfgTest(ControlFlowGraph *expected, const u8 code[], usize size) {
-    config::Get().verbose_logs = true;
+    auto &conf = config::Get();
+    conf.verbose_logs = true;
+    conf.do_disasm_fixes = false;
     ::testing::NiceMock<MockBinInfo> bin;
     logger::Okay("Starting test");
     ON_CALL(bin, IsCode(testing::_)).WillByDefault(testing::Return(true));
     ON_CALL(bin, EntryPoint()).WillByDefault(testing::Return(0x1000));
 
     core::static_analysis::disassembler::Disassembly disas;
-    disas.Disassemble(code, size);
+    disas.Disassemble(code, size, &bin);
     ASSERT_NE(disas.count, 0);
     core::static_analysis::ControlFlowGraph cfg;
     cfg.Build(&disas, &bin, std::vector<u64>{});
@@ -177,14 +179,16 @@ TEST(CFGTest, TestGarbageStop) {
             },
         });
 
-    config::Get().verbose_logs = true;
+    auto &conf = config::Get();
+    conf.verbose_logs = true;
+    conf.do_disasm_fixes = false;
     ::testing::NiceMock<MockBinInfo> bin;
     ON_CALL(bin, IsCode(testing::_))
         .WillByDefault(
             testing::Invoke([](u64 addr) { return addr != 0x100c; }));
 
     core::static_analysis::disassembler::Disassembly disas;
-    disas.Disassemble(code, sizeof(code));
+    disas.Disassemble(code, sizeof(code), &bin);
     ASSERT_NE(disas.count, 0);
     core::static_analysis::ControlFlowGraph cfg;
     cfg.Build(&disas, &bin, std::vector<u64>{});

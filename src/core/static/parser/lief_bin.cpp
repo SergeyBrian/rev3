@@ -42,6 +42,10 @@ bool LiefBin::IsCode(u64 addr) {
     return false;
 }
 
+bool LiefBin::IsValidPtr(u64 addr) {
+    return (0x1000 <= addr && addr <= ImageBase() + bin->virtual_size());
+}
+
 bool LiefBin::AddressInSection(u64 addr, const std::string &name) const {
     auto section = bin->section_from_rva(addr);
     return section && section->name() == name;

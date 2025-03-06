@@ -10,6 +10,7 @@ class MockBinInfo : public core::BinInfo {
 public:
     MOCK_METHOD2(FindImportsXrefs, std::vector<u64>(u64 addr, Err *err));
     MOCK_METHOD1(IsCode, bool(u64 addr));
+    MOCK_METHOD1(IsValidPtr, bool(u64 addr));
     MOCK_CONST_METHOD2(AddressInSection,
                        bool(u64 addr, const std::string &name));
     MOCK_CONST_METHOD1(SectionFromRva, std::string(u64 addr));

@@ -98,81 +98,83 @@ Err DoIATXrefsSearch(Target &target) {
     logger::Debug("Performing IAT xrefs search");
     std::vector<u64> calls{};
 
-    for (u64 i = 1; i < target.disassembly.count; i++) {
-        auto prev_instr = target.disassembly.instructions[i - 1];
-        auto instr = target.disassembly.instructions[i];
+    u64 i = 1;
+    auto prev_instr_it = target.disassembly.instr_map.begin();
+    auto [_, prev_instr] = *prev_instr_it;
+    for (const auto &[addr, instr] : target.disassembly.instr_map) {
         u64 offset = (i >= 4) ? i - 4 : 0;
 
-        if (strstr(instr.mnemonic, "call"))
-            logger::Debug("+ call %s %s", instr.mnemonic, instr.op_str);
-        if (((!strcmp(prev_instr.mnemonic, "lea") ||
-              !strcmp(prev_instr.mnemonic, "mov")) &&
-             (instr.id == X86_INS_CALL || instr.id == X86_INS_LCALL) &&
-             strstr(instr.op_str, "qword") &&
-             (strstr(instr.op_str, "[rip") || strstr(instr.op_str, "[eip"))) ||
-            ((instr.id == X86_INS_CALL || instr.id == X86_INS_LCALL) &&
-             instr.detail->x86.operands[0].type == X86_OP_IMM) ||
-            ((instr.id == X86_INS_CALL || instr.id == X86_INS_LCALL) &&
-             instr.detail->x86.operands[0].type == X86_OP_MEM)) {
-            calls.push_back(i);
+        if (strstr(instr->mnemonic, "call"))
+            logger::Debug("+ call %s %s", instr->mnemonic, instr->op_str);
+        if (((!strcmp(prev_instr->mnemonic, "lea") ||
+              !strcmp(prev_instr->mnemonic, "mov")) &&
+             (instr->id == X86_INS_CALL || instr->id == X86_INS_LCALL) &&
+             strstr(instr->op_str, "qword") &&
+             (strstr(instr->op_str, "[rip") ||
+              strstr(instr->op_str, "[eip"))) ||
+            ((instr->id == X86_INS_CALL || instr->id == X86_INS_LCALL) &&
+             instr->detail->x86.operands[0].type == X86_OP_IMM) ||
+            ((instr->id == X86_INS_CALL || instr->id == X86_INS_LCALL) &&
+             instr->detail->x86.operands[0].type == X86_OP_MEM)) {
+            calls.push_back(instr->address);
 
-            logger::Okay("[%d] Found call at 0x%llx", i, instr.address);
+            logger::Okay("[%d] Found call at 0x%llx", i, instr->address);
             logger::log << "Context: \n";
-            static_analysis::disassembler::Print(
-                &target.disassembly.instructions[offset], 5);
+            target.disassembly.Print(instr->address - offset, 5);
         }
+        prev_instr = instr;
     }
 
     logger::Debug("Searching through %d calls", calls.size());
     u64 idx = 0;
     for (auto i : calls) {
         idx++;
-        auto mov_instr = target.disassembly.instructions[i - 1];
-        auto call_instr = target.disassembly.instructions[i];
+        auto [_, mov_instr] = *target.disassembly.instr_map.lower_bound(i - 1);
+        auto call_instr = target.disassembly.instr_map[i];
         u64 call_addr{};
 
-        if (call_instr.detail->x86.operands[0].type == X86_OP_IMM) {
+        if (call_instr->detail->x86.operands[0].type == X86_OP_IMM) {
             logger::Debug("immediate call found");
-            call_addr = call_instr.detail->x86.operands[0].imm;
-        } else if (call_instr.detail->x86.operands[0].type == X86_OP_MEM) {
+            call_addr = call_instr->detail->x86.operands[0].imm;
+        } else if (call_instr->detail->x86.operands[0].type == X86_OP_MEM) {
             logger::Debug("call to data degment found");
             call_addr =
-                static_analysis::disassembler::SolveMemAddress(&call_instr);
+                static_analysis::disassembler::SolveMemAddress(call_instr);
             logger::Debug("addr value: 0x%llx", call_addr);
         } else {
-            if ((call_instr.address & 0xfffff) ==
+            if ((call_instr->address & 0xfffff) ==
                     config::Get().static_analysis.inspect_address ||
-                (mov_instr.address & 0xfffff) ==
+                (mov_instr->address & 0xfffff) ==
                     config::Get().static_analysis.inspect_address) {
                 logger::Okay("[%d/%d]: 0x%llx", idx, calls.size(),
-                             mov_instr.address);
+                             mov_instr->address);
             } else {
                 logger::Debug("[%d/%d]: 0x%llx", idx, calls.size(),
-                              mov_instr.address);
+                              mov_instr->address);
             }
 
             logger::log << "Context: \n" << COLOR_GRAY;
             for (u64 i = 0; i < 8; i++) {
                 logger::log << "" << std::hex << std::uppercase
                             << std::setfill('0') << std::setw(2)
-                            << static_cast<int>(mov_instr.bytes[i]) << " ";
+                            << static_cast<int>(mov_instr->bytes[i]) << " ";
             }
-            logger::log << "\t" << mov_instr.mnemonic << " "
-                        << mov_instr.op_str;
+            logger::log << "\t" << mov_instr->mnemonic << " "
+                        << mov_instr->op_str;
             logger::log << "\n";
             for (u64 i = 0; i < 8; i++) {
                 logger::log << "" << std::hex << std::uppercase
                             << std::setfill('0') << std::setw(2)
-                            << static_cast<int>(call_instr.bytes[i]) << " ";
+                            << static_cast<int>(call_instr->bytes[i]) << " ";
             }
-            logger::log << "\t" << call_instr.mnemonic << " "
-                        << call_instr.op_str;
+            logger::log << "\t" << call_instr->mnemonic << " "
+                        << call_instr->op_str;
             logger::log << "\n" << COLOR_RESET;
 
             i64 offset = static_analysis::disassembler::ParseOffsetPtr(
-                call_instr.op_str);
+                call_instr->op_str);
             logger::Debug("ParseOffsetPtr: 0x%llx", offset);
-            call_addr = call_instr.address + call_instr.size + offset;
+            call_addr = call_instr->address + call_instr->size + offset;
         }
         logger::Debug("Target address: 0x%llx", call_addr);
         for (auto &[_, funcs] : target.imports) {
@@ -180,11 +182,11 @@ Err DoIATXrefsSearch(Target &target) {
                 for (const auto &xref : func.xrefs) {
                     if (xref == call_addr ||
                         xref == call_addr - target.bin_info->ImageBase()) {
-                        func.xrefs.push_back(call_instr.address);
+                        func.xrefs.push_back(call_instr->address);
                         logger::Okay(
                             "Found call to %s at 0x%llx",
                             func.display_name.c_str(),
-                            call_instr.address + target.bin_info->ImageBase());
+                            call_instr->address + target.bin_info->ImageBase());
                     }
                 }
             }
@@ -216,11 +218,16 @@ void Run() {
             continue;
         }
 
+        logger::Debug("Virtual entrypoint: 0x%llx",
+                      target.bin_info->EntryPoint());
+
         static_analysis::FindStrings(target);
 
         if (config::Get().static_analysis.do_imports_print) {
             output::PrintImports(target);
-            continue;
+            if (config::Get().verbose_logs) {
+                continue;
+            }
         }
         err = AnalyzeImports(target);
         if (err != Err::Ok) {
@@ -231,12 +238,15 @@ void Run() {
         auto text =
             target.bin_info->Data(target.text.address, target.text.size);
 
-        err = target.disassembly.Disassemble(text, target.text.size);
+        err = target.disassembly.Disassemble(text, target.text.size,
+                                             target.bin_info.get());
         if (err != Err::Ok) {
             logger::Error(".text disassembly failed for `%s`",
                           target.display_name.c_str());
             continue;
         }
+        target.disassembly.PrintCoverage(target.text.size);
+
         err = DoXrefsSearch(target);
         if (err != Err::Ok) {
             logger::Error("Xrefs search failed for `%s`",
@@ -293,7 +303,17 @@ void Run() {
                 logger::Error("Can't inspect node at 0x%llx",
                               config::Get().static_analysis.inspect_address);
             } else {
-                logger::Info("Inspecting node 0x%llx", node->block.address);
+                printf("%s=== Inspecting node 0x%llx ===%s\n", COLOR_GREEN,
+                       node->block.address, COLOR_RESET);
+                if (node->block.address !=
+                    config::Get().static_analysis.inspect_address) {
+                    logger::Warn(
+                        "!! There is no node starting at 0x%llx.\n"
+                        "Displaying node containing this address. If you "
+                        "expected to see something else, check the requested "
+                        "address.",
+                        config::Get().static_analysis.inspect_address);
+                }
                 std::cout << target.GetString(node->block.real_address,
                                               node->block.size);
             }
@@ -330,13 +350,6 @@ outer_break:
             logger::Error("No references found");
         } else {
             logger::Okay("%d references found", xrefs.size());
-        }
-        for (const auto &xref : xrefs) {
-            paths[xref] = target.cfg.FindShortestPath(
-                target.bin_info->EntryPoint(), xref);
-            if (paths.at(xref).size() == 0) {
-                paths.erase(xref);
-            }
         }
 
         logger::Info("%d paths found", paths.size());

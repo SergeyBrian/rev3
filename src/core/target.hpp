@@ -37,23 +37,23 @@ struct Function {
     std::string mangled_name{};
     std::string display_name{};
     std::string comment{};
-    std::vector<u64> xrefs;
+    std::vector<u64> xrefs{};
 };
 
 struct Section {
-    std::string name;
-    u64 address;
-    usize size;
-    usize virtual_size;
+    std::string name{};
+    u64 address{};
+    usize size{};
+    usize virtual_size{};
 };
 
 struct String {
     enum class Type : u8 {
         Data,
     } type;
-    std::string content;
+    std::string content{};
 
-    u64 address;
+    u64 address{};
 };
 
 struct Target {

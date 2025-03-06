@@ -1,9 +1,6 @@
 #include "control.hpp"
 
 #include <algorithm>
-#include <unordered_set>
-#include <unordered_map>
-#include <queue>
 
 #include "capstone/capstone.h"
 
@@ -268,19 +265,16 @@ void ControlFlowGraph::AddEdge(CFGNode *from, CFGNode *to, CFGEdgeType type,
 
 u64 GetNextNodeAddress(u64 addr, disassembler::Disassembly *disas,
                        BinInfo *bin) {
-    u64 i{};
-    for (; i < disas->count && disas->instructions[i].address != addr; i++) {
-    };
-    auto instr = &disas->instructions[i];
+    auto it = disas->instr_map.lower_bound(addr);
+    auto &[_, instr] = *it;
 
     CFGEdgeType type = GetEdgeType(instr->id);
 
     switch (type) {
         case CFGEdgeType::Jmp:
         case CFGEdgeType::Jcc:
-            return disassembler::GetJmpAddress(instr, bin);
         case CFGEdgeType::Call:
-            return disassembler::GetCallAddress(instr, bin);
+            return disassembler::GetTargetAddress(instr, bin);
         case CFGEdgeType::Ret:
         case CFGEdgeType::Int:
         case CFGEdgeType::Invalid:
@@ -544,8 +538,9 @@ Condition MakeCondition(cs_insn *instr, disassembler::Disassembly *disas,
     Flag active_flags = res.flags;
 
     // TODO: EXTREMELLY unsafe, need to set lower bound for instr
-    cs_insn *tmp = instr;
-    for (; static_cast<u8>(active_flags); tmp--) {
+    auto it = disas->instr_map.lower_bound(instr->address);
+    while (it != disas->instr_map.begin() && static_cast<u8>(active_flags)) {
+        auto [_, tmp] = *it--;
         assert(
             effective_instr_idx < 3 &&
             "Programming error. No more than two instructions can affect JCC");
@@ -770,11 +765,9 @@ CFGNode *ControlFlowGraph::MakeFirstNode(disassembler::Disassembly *disas,
                                          BinInfo *bin) {
     auto node = std::make_unique<CFGNode>();
     u64 addr{};
-    logger::Debug("EntryPoint: %d", bin->EntryPoint());
-    for (u64 i = 0; i < disas->count; i++) {
-        auto instruction = disas->instructions[i];
-        if (instruction.address < bin->EntryPoint()) continue;
-        addr = instruction.address;
+    for (auto &[a, instruction] : disas->instr_map) {
+        if (instruction->address < bin->EntryPoint()) continue;
+        addr = instruction->address;
         node->block.address = addr;
         node->block.real_address = addr;
         if (bin->IsCode(addr)) {

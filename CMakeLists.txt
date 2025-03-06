@@ -157,6 +157,7 @@ enable_testing()
 
 set(tests 
     tests/static/control/test_control.cpp
+    tests/static/disassembly/test_disassembler.cpp
 )
 
 add_executable(runTests 
@@ -165,4 +166,5 @@ add_executable(runTests
     ${core}
 )
 target_link_libraries(runTests gtest_main gmock_main ${libs})
+target_compile_definitions(runTests PRIVATE X86_BUILD)
 add_test(NAME Tests COMMAND runTests)

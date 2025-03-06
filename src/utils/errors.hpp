@@ -16,6 +16,7 @@ enum class ErrorCode {
     ArchitectureMismatch,
     UnknownCmpInstr,
     InvalidOperand,
+    InvalidEntrypoint,
     Count
 };
 
@@ -36,6 +37,7 @@ inline const char *ErrorText[static_cast<int>(ErrorCode::Count)] = {
     "Wrong tool architecture",
     "Unknown instruction affecting condition",
     "Invalid operand",
+    "Provided entrypoint is invalid",
 };
 
 #endif

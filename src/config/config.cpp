@@ -116,6 +116,7 @@ void InitFromArgs(int argc, char **argv) {
         ("inspect", "Address of interest", cxxopts::value<std::string>()->default_value("0x0"))
         ("u,ui", "Enable GUI", cxxopts::value<bool>()->default_value("false"))
         ("no-exec-code-check", "Disable SEH and .reloc based checking for executable code fragments", cxxopts::value<bool>())
+        ("no-disasm-fixes", "Disable anti-disassembly techniques detection", cxxopts::value<bool>())
     ;
     // clang-format on
 
@@ -146,6 +147,7 @@ void InitFromArgs(int argc, char **argv) {
 
         config.verbose_logs =
             result["verbose"].as<bool>() && !result.count("quiet");
+        config.do_disasm_fixes = !result["no-disasm-fixes"].as<bool>();
         config.ui = result["ui"].as<bool>();
         if (result.count("sink"))
             config.static_analysis.sink_target =
