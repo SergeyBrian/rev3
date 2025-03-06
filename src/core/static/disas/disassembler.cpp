@@ -415,7 +415,10 @@ Err Disassembly::Disassemble(const byte *ptr, usize size, BinInfo *bin) {
 
 bool Disassembly::IsCovered(u64 addr) {
     auto it = covered_bytes.upper_bound(addr);
-    it--;
+    if (it != covered_bytes.begin()) {
+        it--;
+    }
+
     return it->second >= addr;
 }
 
