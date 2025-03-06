@@ -556,7 +556,7 @@ u64 SolveMemValue(const cs_insn *instr, BinInfo *bin) {
 
     const u8 *mem = bin->Data(mem_addr, 8);
     if (!mem) {
-        logger::Warn("Failed to read memory at 0x%llx", mem_addr);
+        logger::Debug("Failed to read memory at 0x%llx", mem_addr);
         return 0;
     }
     return *reinterpret_cast<const u64 *>(mem);

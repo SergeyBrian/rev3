@@ -58,6 +58,8 @@ std::string LiefBin::SectionFromRva(u64 addr) const {
 u64 LiefBin::ImageBase() const { return bin->imagebase(); }
 
 const byte *LiefBin::Data(u64 addr, usize size) const {
+    if (!bin->section_from_rva(addr)) return nullptr;
+
     return bin
         ->get_content_from_virtual_address(addr,
                                            std::min(size, bin->virtual_size()))

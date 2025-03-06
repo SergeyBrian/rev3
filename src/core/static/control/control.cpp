@@ -304,7 +304,7 @@ CFGNode *ControlFlowGraph::InsertFakeNode(u64 real_address) {
         fake_address = fake_node_counter--;
     }
 
-    logger::Warn("Inserting fake node 0x%llx", fake_address);
+    logger::Debug("Inserting fake node 0x%llx", fake_address);
 
     auto node = std::make_unique<CFGNode>();
     node->block.address = fake_address;
@@ -580,8 +580,8 @@ CFGNode *ControlFlowGraph::AddNode(CFGNode *node,
     logger::Debug("Recursion depth: %d", depth);
     // Processes a node and returns pointer to the next node to process
     if (!disas->instr_map.contains(node->block.address)) {
-        logger::Warn("Reference to invalid address 0x%llx!",
-                     node->block.address);
+        logger::Debug("Reference to invalid address 0x%llx!",
+                      node->block.address);
         if (node->returns) {
             for (auto caller : node->callers) {
                 AddEdge(node, caller, CFGEdgeType::Ret);
@@ -638,7 +638,7 @@ CFGNode *ControlFlowGraph::AddNode(CFGNode *node,
             }
             new_address = tmp->block.address;
         } else {
-            logger::Warn("Node 0x%llx skipped", new_address);
+            logger::Debug("Node 0x%llx skipped", new_address);
             depth--;
             return nullptr;
         }
