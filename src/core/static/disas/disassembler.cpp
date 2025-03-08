@@ -162,6 +162,7 @@ bool IsSuspicious(cs_insn *instr, BinInfo *bin) {
             return true;
         }
     }
+    if (!strcmp(instr->mnemonic, ".byte")) return true;
 
     return false;
 }

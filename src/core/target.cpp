@@ -4,6 +4,7 @@
 #include <sstream>
 
 #include "../utils/logger.hpp"
+#include "../utils/utils.hpp"
 
 namespace core {
 Target::Target(const std::string &filename) : filename(filename) {
@@ -16,8 +17,8 @@ std::string Target::GetFunctionNameByAddress(u64 address) {
     if (func_name_cache.contains(address)) return func_name_cache.at(address);
     for (const auto &[_, funcs] : imports) {
         for (const auto &func : funcs) {
-            for (const auto &xref : func.xrefs) {
-                auto node = cfg.FindNodeContaining(xref);
+            for (const auto &[xref_address, _] : func.xrefs) {
+                auto node = cfg.FindNodeContaining(xref_address);
                 if (node) {
                     func_name_cache[address] = func.display_name;
                     return func.display_name;
@@ -35,8 +36,13 @@ void Target::MapFunctions() {
     for (auto &[_, funcs] : imports) {
         for (auto &func : funcs) {
             functions[func.address] = &func;
-            for (const auto &xref : func.xrefs) {
-                auto node = cfg.FindNodeContaining(xref);
+            references[func.address] = {{
+                .type = Reference::Type::Function,
+                .address = func.address,
+                .direct = true,
+            }};
+            for (const auto &[xref_address, _] : func.xrefs) {
+                auto node = cfg.FindNodeContaining(xref_address);
                 if (!node) continue;
                 functions[node->block.real_address] = &func;
             }
@@ -51,7 +57,6 @@ std::string Target::GetEnrichedDisassembly(u64 address, usize size) {
         return enriched_disassembly_cache.at(address).at(size);
     }
     usize init_size = size;
-    if (functions.empty()) MapFunctions();
     if (size == 0) size = u64_max;
     std::ostringstream res;
 
@@ -81,32 +86,50 @@ std::string Target::GetString(u64 addr, usize size) {
         if (instr->address >= addr + size) break;
         ss << std::hex << "0x" << address << "\t" << instr->mnemonic << " "
            << instr->op_str;
-        u8 op_count = instr->detail->x86.op_count;
-        auto ops = instr->detail->x86.operands;
-        bool call_processed = false;
-        for (u8 i = 0; i < op_count; i++) {
-            u64 addr{};
-            if (ops[i].type == X86_OP_MEM) {
-                addr = static_analysis::disassembler::SolveMemAddress(instr);
-            } else if (ops[i].type == X86_OP_IMM) {
-                addr = ops[i].imm;
-            }
-
-            if (strings_map.contains(addr)) {
-                ss << COLOR_BLUE << "\t`" << strings_map.at(addr) << "` "
-                   << COLOR_RESET;
-            }
-            if (!call_processed) {
-                call_processed = true;
-                for (const auto &[_, funcs] : imports) {
-                    for (const auto &func : funcs) {
-                        for (const auto &xref : func.xrefs) {
-                            if (addr == xref + bin_info->ImageBase()) {
-                                ss << COLOR_YELLOW << "\t[" << func.display_name
-                                   << "]" << COLOR_RESET;
+        if (references.contains(address)) {
+            for (const auto &ref : references.at(address)) {
+                switch (ref.type) {
+                    case Reference::Type::Immediate:
+                        ss << COLOR_BLUE << "\t0x" << ref.value << COLOR_RESET;
+                        break;
+                    case Reference::Type::Unknown:
+                        ss << COLOR_GRAY << "\t?0x" << ref.address
+                           << COLOR_RESET;
+                        break;
+                    case Reference::Type::Function: {
+                        auto func = functions.at(ref.address);
+                        ss << (ref.direct ? COLOR_YELLOW : COLOR_GRAY) << "\t@"
+                           << func->display_name << COLOR_RESET;
+                        ss << COLOR_GREEN << " (";
+                        for (const auto &arg : func->xrefs.at(address).args) {
+                            ss << " ";
+                            switch (arg.type) {
+                                case Reference::Type::Immediate:
+                                    ss << "0x" << arg.value;
+                                    break;
+                                case Reference::Type::Unknown:
+                                    ss << "?0x" << arg.address;
+                                    break;
+                                case Reference::Type::Function:
+                                    ss << "@"
+                                       << functions.at(arg.address)
+                                              ->display_name;
+                                    break;
+                                case Reference::Type::String:
+                                    ss << "`"
+                                       << utils::UnescapeString(
+                                              strings_map.at(arg.address))
+                                       << "`";
+                                    break;
                             }
                         }
-                    }
+                        ss << ")" << COLOR_RESET;
+                    } break;
+                    case Reference::Type::String:
+                        ss << (ref.direct ? COLOR_BLUE : COLOR_GRAY) << "\t`"
+                           << utils::UnescapeString(strings_map.at(ref.address))
+                           << "`" << COLOR_RESET;
+                        break;
                 }
             }
         }

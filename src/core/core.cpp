@@ -6,6 +6,7 @@
 
 #include "../common/pre_checks.hpp"
 
+#include "static/calls/calls.hpp"
 #include "target.hpp"
 #include "output.hpp"
 #include "static/parser/parser.hpp"
@@ -84,13 +85,16 @@ Err AnalyzeImports(Target &target) {
             }
 
             for (const auto xref : xrefs) {
-                entry.xrefs.push_back(xref);
+                entry.xrefs[xref] = {
+                    .address = xref,
+                    .args = {},
+                };
             }
         }
     }
 
     return err;
-}
+}  // namespace core
 
 Err DoIATXrefsSearch(Target &target) {
     Err err{};
@@ -179,15 +183,16 @@ Err DoIATXrefsSearch(Target &target) {
         logger::Debug("Target address: 0x%llx", call_addr);
         for (auto &[_, funcs] : target.imports) {
             for (auto &func : funcs) {
-                for (const auto &xref : func.xrefs) {
-                    if (xref == call_addr ||
-                        xref == call_addr - target.bin_info->ImageBase()) {
-                        func.xrefs.push_back(call_instr->address);
-                        logger::Okay(
-                            "Found call to %s at 0x%llx",
-                            func.display_name.c_str(),
-                            call_instr->address + target.bin_info->ImageBase());
-                    }
+                if (func.xrefs.contains(call_addr) ||
+                    func.xrefs.contains(call_addr -
+                                        target.bin_info->ImageBase())) {
+                    func.xrefs[call_instr->address] = {
+                        .address = call_instr->address,
+                        .args = {},
+                    };
+                    logger::Okay(
+                        "Found call to %s at 0x%llx", func.display_name.c_str(),
+                        call_instr->address + target.bin_info->ImageBase());
                 }
             }
         }
@@ -220,8 +225,6 @@ void Run() {
 
         logger::Debug("Virtual entrypoint: 0x%llx",
                       target.bin_info->EntryPoint());
-
-        static_analysis::FindStrings(target);
 
         if (config::Get().static_analysis.do_imports_print) {
             output::PrintImports(target);
@@ -265,13 +268,14 @@ void Run() {
                     continue;
                 }
                 bool found = false;
-                for (const auto xref : func.xrefs) {
-                    if (!target.bin_info->AddressInSection(xref, ".text"))
+                for (const auto &[xref_address, _] : func.xrefs) {
+                    if (!target.bin_info->AddressInSection(xref_address,
+                                                           ".text"))
                         continue;
                     found = true;
-                    cf_targets.push_back(xref);
+                    cf_targets.push_back(xref_address);
                     cf_target_labels.push_back(func.display_name);
-                    logger::Debug("Reference in .text: 0x%llx", xref);
+                    logger::Debug("Reference in .text: 0x%llx", xref_address);
                 }
                 if (!found) {
                     logger::Warn("Skipping `%s`. No direct references found",
@@ -295,6 +299,11 @@ void Run() {
             logger::Error(
                 "Something went wrong during build of control flow graph");
         }
+        target.MapFunctions();
+
+        static_analysis::FindStrings(target);
+        static_analysis::FindReferences(target);
+        static_analysis::FindCallsArgs(target);
 
         if (config::Get().static_analysis.inspect_address) {
             auto node = target.cfg.FindNode(
@@ -314,8 +323,23 @@ void Run() {
                         "address.",
                         config::Get().static_analysis.inspect_address);
                 }
-                std::cout << target.GetString(node->block.real_address,
-                                              node->block.size);
+                while (node) {
+                    std::cout << target.GetString(node->block.real_address,
+                                                  node->block.size);
+                    if (node->out_edges.empty()) break;
+                    if (node->out_edges.begin()->type ==
+                        static_analysis::CFGEdgeType::Ret) {
+                        std::cout << "<<<<<<<<<<<<<<<<<<<<<\n";
+                        break;
+                    } else if (node->out_edges.begin()->type ==
+                               static_analysis::CFGEdgeType::Jmp) {
+                        node = node->out_edges.begin()->target;
+                        std::cout << ">>>>>>>>>>>>>>>>>>>>>\n";
+                    } else {
+                        node = target.cfg.FindNode(node->block.next_address);
+                        std::cout << "---------------------\n";
+                    }
+                }
             }
         }
 

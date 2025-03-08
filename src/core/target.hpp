@@ -30,6 +30,24 @@ const std::map<Tag, std::string> TagName{
     {Tag::Masking, "masking"},
 };
 
+struct Reference {
+    enum class Type : u8 {
+        Unknown,
+        Function,
+        String,
+        Immediate,
+    } type{};
+
+    u64 address{};
+    i64 value{};
+    bool direct{};
+};
+
+struct Xref {
+    u64 address{};
+    std::vector<Reference> args;
+};
+
 struct Function {
     u64 address{};
     u64 ret_address{};
@@ -37,7 +55,7 @@ struct Function {
     std::string mangled_name{};
     std::string display_name{};
     std::string comment{};
-    std::vector<u64> xrefs{};
+    std::map<u64, Xref> xrefs{};
 };
 
 struct Section {
@@ -64,6 +82,7 @@ struct Target {
     std::map<u64, Function *> functions;
     std::vector<String> strings;
     std::map<u64, std::string> strings_map;
+    std::map<u64, std::vector<Reference>> references;
 
     Section text;
 
@@ -78,8 +97,6 @@ struct Target {
     std::string GetString(u64 addr, usize size);
 
     explicit Target(const std::string &filename);
-
-private:
     void MapFunctions();
 };
 }  // namespace core

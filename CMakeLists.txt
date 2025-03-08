@@ -102,6 +102,8 @@ set(common
     src/common/pre_checks.cpp
     src/utils/system.hpp
     src/utils/system.cpp
+    src/utils/utils.hpp
+    src/utils/utils.cpp
 )
 
 set(core
@@ -123,6 +125,8 @@ set(core
     src/core/static/parser/lief_bin.cpp
     src/core/static/strings/strings.hpp
     src/core/static/strings/strings.cpp
+    src/core/static/calls/calls.hpp
+    src/core/static/calls/calls.cpp
 )
 
 add_executable(${CMAKE_PROJECT_NAME} src/main.cpp

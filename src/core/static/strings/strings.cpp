@@ -24,6 +24,11 @@ void FindStrings(Target &target) {
                 target.strings.push_back(string);
                 target.strings_map[cur_addr + target.bin_info->ImageBase()] =
                     string.content;
+                target.references[cur_addr + target.bin_info->ImageBase()] = {{
+                    .type = Reference::Type::String,
+                    .address = cur_addr + target.bin_info->ImageBase(),
+                    .direct = true,
+                }};
             }
             buf.clear();
             cur_addr = section.address + i + 1;
