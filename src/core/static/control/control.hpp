@@ -124,9 +124,7 @@ struct CFGEdge {
 
     Condition condition{};
 
-#ifndef NDEBUG
     void Log() const;
-#endif
 };
 
 struct CFGNode {

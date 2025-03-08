@@ -1,6 +1,7 @@
 #include "control.hpp"
 
 #include <algorithm>
+#include <cassert>
 
 #include "capstone/capstone.h"
 
@@ -139,8 +140,10 @@ CFGEdgeType GetEdgeType(u16 opcode) {
 }
 
 void CFGEdge::Log() const {
+#ifndef NDEBUG
     logger::Debug("0x%llx ==%s==> 0x%llx", source->block.address,
                   EdgeTypeStr(type).c_str(), target->block.address);
+#endif
 }
 
 void Deduplicate(std::vector<CFGEdge> &edges) {

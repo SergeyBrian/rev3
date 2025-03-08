@@ -37,7 +37,7 @@ FetchContent_MakeAvailable(nlohmann_json)
 FetchContent_Declare(
     capstone
     GIT_REPOSITORY https://github.com/capstone-engine/capstone
-    GIT_TAG        6.0.0-Alpha3
+    GIT_TAG        5.0.5
 )
 
 FetchContent_MakeAvailable(capstone)
@@ -50,19 +50,39 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(googletest)
 
 FetchContent_Declare(
-    imgui
-    GIT_REPOSITORY https://github.com/ocornut/imgui.git
-    GIT_TAG v1.89.7-docking
+    z3
+    GIT_REPOSITORY https://github.com/Z3Prover/z3
+    GIT_TAG z3-4.14.0
 )
+FetchContent_MakeAvailable(z3)
 
-FetchContent_MakeAvailable(imgui)
+set(Z3_DIR "${CMAKE_BINARY_DIR}/_deps/z3-build")
+set(Z3_INCLUDE_DIR "${CMAKE_BINARY_DIR}/_deps/z3-src/src/api")
+set(Z3_CXX_INCLUDE_DIR "${Z3_INCLUDE_DIR}/c++")
+set(Z3_LIBRARIES "${Z3_LIBRARY}")
+set(Z3_VERSION_HEADER "${CMAKE_BINARY_DIR}/_deps/z3-src/src/util/z3_version.h.in")
+# Z3_INCLUDE_DIRS is for triton
+set(Z3_INCLUDE_DIRS "${Z3_CXX_INCLUDE_DIR}")
+include_directories(${Z3_INCLUDE_DIR} ${Z3_CXX_INCLUDE_DIR})
+
+
+set(CAPSTONE_DIR "${CMAKE_BINARY_DIR}/_deps/capstone-build")
+set(CAPSTONE_INCLUDE_DIR "${CMAKE_BINARY_DIR}/_deps/capstone-src/include")
+set(CAPSTONE_LIBRARY "${CAPSTONE_DIR}/libcapstone.a")
+set(CAPSTONE_LIBRARIES "${CAPSTONE_LIBRARY}")
+set(CAPSTONE_INCLUDE_DIRS "${CAPSTONE_INCLUDE_DIR}")
 
 FetchContent_Declare(
-    glfw
-    GIT_REPOSITORY https://github.com/glfw/glfw.git
-    GIT_TAG 3.3.8
+    triton
+    GIT_REPOSITORY https://github.com/JonathanSalwan/Triton.git
+    GIT_TAG e312eaf
+
 )
-FetchContent_MakeAvailable(glfw)
+FetchContent_MakeAvailable(triton)
+
+set(TRITON_DIR "${CMAKE_BINARY_DIR}/_deps/triton-src")
+
+include_directories("${TRITON_DIR}/src/libtriton/includes")
 
 if (MSVC)
 else()
@@ -82,11 +102,6 @@ set(common
     src/common/pre_checks.cpp
     src/utils/system.hpp
     src/utils/system.cpp
-)
-
-set(ui
-    src/ui/ui.hpp
-    src/ui/ui.cpp
 )
 
 set(core
@@ -110,40 +125,23 @@ set(core
     src/core/static/strings/strings.cpp
 )
 
-set(imgui_source
-    ${imgui_SOURCE_DIR}/imgui.cpp
-    ${imgui_SOURCE_DIR}/imgui_draw.cpp
-    ${imgui_SOURCE_DIR}/imgui_widgets.cpp
-    ${imgui_SOURCE_DIR}/imgui_tables.cpp
-    ${imgui_SOURCE_DIR}/imgui_demo.cpp
-
-    ${imgui_SOURCE_DIR}/backends/imgui_impl_glfw.cpp
-    ${imgui_SOURCE_DIR}/backends/imgui_impl_opengl3.cpp
-)
-
 add_executable(${CMAKE_PROJECT_NAME} src/main.cpp
     ${common}
     ${core}
-    ${ui}
-    ${imgui_source}
 )
 
 add_executable(${CMAKE_PROJECT_NAME}x32 src/main.cpp
     ${common}
     ${core}
-    ${ui}
-    ${imgui_source}
 )
 
 set(libs
-cxxopts LIEF::LIEF nlohmann_json::nlohmann_json capstone glfw OpenGL::GL
+cxxopts LIEF::LIEF nlohmann_json::nlohmann_json capstone_static libz3 triton
 )
 
 target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE ${libs})
-target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE ${imgui_SOURCE_DIR})
 
 target_link_libraries(${CMAKE_PROJECT_NAME}x32 PRIVATE ${libs})
-target_include_directories(${CMAKE_PROJECT_NAME}x32 PRIVATE ${imgui_SOURCE_DIR})
 target_compile_definitions(${CMAKE_PROJECT_NAME}x32 PRIVATE X86_BUILD)
 
 add_compile_definitions(IMGUI_ENABLE_DOCKING IMGUI_DEFINE_MATH_OPERATORS)

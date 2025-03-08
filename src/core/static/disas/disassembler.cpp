@@ -3,6 +3,7 @@
 #include "../../../utils/logger.hpp"
 #include "capstone/x86.h"
 
+#include <cassert>
 #include <regex>
 #include <stdexcept>
 #include <string>
