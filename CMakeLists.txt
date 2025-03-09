@@ -127,6 +127,10 @@ set(core
     src/core/static/strings/strings.cpp
     src/core/static/calls/calls.hpp
     src/core/static/calls/calls.cpp
+    src/core/dynamic/strings/strings.hpp
+    src/core/dynamic/strings/strings.cpp
+    src/core/static/patterns/patterns.hpp
+    src/core/static/patterns/patterns.cpp
 )
 
 set(cli

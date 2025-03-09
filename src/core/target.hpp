@@ -94,11 +94,12 @@ struct Target {
     static_analysis::disassembler::Disassembly disassembly;
     static_analysis::ControlFlowGraph cfg;
 
-    std::string GetFunctionNameByAddress(u64 address);
-    std::string GetEnrichedDisassembly(u64 address = 0, usize size = 0);
+    [[nodiscard]] std::string GetFunctionNameByAddress(u64 address);
+    [[nodiscard]] std::string GetEnrichedDisassembly(u64 address = 0,
+                                                     usize size = 0);
 
-    std::string GetString(u64 addr, usize size = 0) const;
-    std::string GetNodeString(u64 addr) const;
+    [[nodiscard]] std::string GetString(u64 addr, usize size = 0) const;
+    [[nodiscard]] std::string GetNodeString(u64 addr) const;
 
     explicit Target(const std::string &filename);
     void MapFunctions();

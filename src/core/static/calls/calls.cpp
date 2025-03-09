@@ -150,6 +150,11 @@ void FindReferences(Target &target) {
                 ReferenceHolder::RegHash(static_cast<x86_reg>(reg_write[i])));
         }
 
+        if (instr->id == X86_INS_CALL) {
+            refs.erase(ReferenceHolder::RegHash(X86_REG_EAX));
+            refs.erase(ReferenceHolder::RegHash(X86_REG_RAX));
+        }
+
         // cur_ref represents the ReferenceHolder assigned to current
         // instruction due to the specifics of ReferenceHolder, one instruction
         // can only hold one reference. i.e. if instruction is mov reg, <ref>;

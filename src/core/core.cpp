@@ -14,6 +14,7 @@
 #include "static/parser/parser.hpp"
 #include "static/control/control.hpp"
 #include "static/strings/strings.hpp"
+#include "dynamic/strings/strings.hpp"
 
 namespace core {
 static std::vector<Target> targets{};
@@ -360,6 +361,7 @@ void Run() {
         static_analysis::FindStrings(target);
         static_analysis::FindReferences(target);
         static_analysis::FindCallsArgs(target);
+        dynamic::DecryptStrings(&target);
 
         if (config::Get().static_analysis.inspect_address) {
             Inspect(&target, config::Get().static_analysis.inspect_address);
