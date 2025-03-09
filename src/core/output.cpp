@@ -52,4 +52,17 @@ void PrintFunctions(const Target *target) {
                COLOR_GRAY, func->comment.c_str(), COLOR_RESET);
     }
 }
+
+void PrintRefs(const Target *target, u64 addr) {
+    if (!target->functions.contains(addr)) {
+        logger::Error("There is no function at 0x%llx", addr);
+        return;
+    }
+    const auto &func = target->functions.at(addr);
+    printf("=== References to %s ===\n", func->display_name.c_str());
+    for (const auto &[addr, _] : func->xrefs) {
+        if (!target->disassembly.instr_map.contains(addr)) continue;
+        std::cout << target->GetString(addr);
+    }
+}
 }  // namespace core::output

@@ -874,8 +874,6 @@ std::vector<u64> ControlFlowGraph::FindXrefs(std::string label) {
 std::vector<CFGNode *> ControlFlowGraph::FindPath(u64 start, u64 target) const {
     std::vector<CFGNode *> res{};
 
-    logger::Info("Searching for path 0x%llx -> 0x%llx", start, target);
-
     auto start_node = FindNodeContaining(start);
     if (!start_node) {
         logger::Error("Unable to find starting node");
@@ -887,38 +885,67 @@ std::vector<CFGNode *> ControlFlowGraph::FindPath(u64 start, u64 target) const {
         logger::Error("Unable to find target node");
         return res;
     }
-    /**/
-    /*std::deque<CFGNode *> stack{};*/
-    /*std::set<CFGNode *> visited{};*/
-    /**/
-    /*stack.push_back(start_node);*/
-    /**/
-    /*while (!stack.empty()) {*/
-    /*    auto node = stack.back();*/
-    /*    stack.pop_back();*/
-    /*    if (visited.contains(node)) {*/
-    /*        continue;*/
-    /*    }*/
-    /**/
-    /*    if (node == target_node) {*/
-    /*        logger::Okay("Success!");*/
-    /*        break;*/
-    /*    }*/
-    /**/
-    /*    bool fully_explored = true;*/
-    /*    for (const auto &edge : node->out_edges) {*/
-    /*        if (edge.type == CFGEdgeType::Ret ||*/
-    /*            visited.contains(edge.target)) {*/
-    /*            continue;*/
-    /*        }*/
-    /*        fully_explored = false;*/
-    /*        stack.push_back(edge.target);*/
-    /*        break;*/
-    /*    }*/
-    /*    if (fully_explored) {*/
-    /*        visited.insert(node);*/
-    /*    }*/
-    /*}*/
+
+    logger::Info("Searching for path 0x%llx -> 0x%llx",
+                 start_node->block.address, target_node->block.address);
+
+    std::deque<CFGNode *> stack{};
+    std::set<CFGNode *> visited{};
+
+    stack.push_back(start_node);
+
+    while (!stack.empty()) {
+        for (const auto &node : stack) {
+            printf("0x%llx -> ", node->block.address);
+        }
+        printf("\n");
+        auto node = stack.back();
+        if (visited.contains(node)) {
+            stack.pop_back();
+            continue;
+        }
+        logger::Debug("Visiting 0x%llx", node->block.address);
+
+        if (node == target_node) {
+            logger::Okay("Success!");
+            break;
+        }
+
+        bool fully_explored = true;
+        for (const auto &edge : node->out_edges) {
+            bool skip_edge = false;
+            bool edge_found = false;
+            if (edge.type == CFGEdgeType::Ret ||
+                visited.contains(edge.target) || edge.target == node) {
+                skip_edge = true;
+            }
+
+            edge.Log();
+            if (!skip_edge && !utils::contains(stack, edge.target)) {
+                fully_explored = false;
+                stack.push_back(edge.target);
+                edge_found = true;
+            }
+
+            // Because if we already fucking visited the fucking call target we
+            // still need to fucking return from it bruh
+            if (edge.type == CFGEdgeType::Call) {
+                auto ret_node = FindNode(node->block.next_address);
+                if (ret_node && !visited.contains(ret_node)) {
+                    fully_explored = false;
+                    logger::Debug("Will return to 0x%llx",
+                                  ret_node->block.address);
+                    stack.push_back(ret_node);
+                }
+            }
+
+            if (edge_found) break;
+        }
+        if (fully_explored) {
+            visited.insert(node);
+            stack.pop_back();
+        }
+    }
 
     return res;
 }

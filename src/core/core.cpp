@@ -449,6 +449,9 @@ void Inspect(const Target *target, u64 address) {
     } else {
         printf("%s=== Inspecting node 0x%llx ===%s\n", COLOR_GREEN,
                node->block.address, COLOR_RESET);
+        for (const auto &edge : node->in_edges) {
+            edge.Log();
+        }
         if (node->block.address != address) {
             logger::Warn(
                 "There is no node starting at 0x%llx.\n"

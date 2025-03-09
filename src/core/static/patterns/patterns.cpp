@@ -18,7 +18,8 @@ bool MatchOp(cs_x86_op first, cs_x86_op second) {
             }
             break;
         case X86_OP_IMM:
-            if (first.imm != second.imm) {
+            if (first.imm != static_cast<int64_t>(u64_max) &&
+                first.imm != second.imm) {
                 return false;
             }
             break;
@@ -46,7 +47,9 @@ bool InstrMatchesPattern(const Target *target, cs_insn *instr,
     }
     switch (cur_pattern.stmt.type) {
         case Pattern::Stmt::Type::Any:
-            if (--cur_pattern.count < 0) {
+            logger::Debug("any ok (count: %d)", cur_pattern.count);
+            if (cur_pattern.count == -1 || --cur_pattern.count < 0) {
+                logger::Debug("next step");
                 *step += 1;
             }
             return true;

@@ -44,7 +44,11 @@ void DecryptStrings(Target *target) {
                         .insn =
                             {
                                 .id = X86_INS_XOR,
-                                .right_op = {.type = X86_OP_IMM},
+                                .right_op =
+                                    {
+                                        .type = X86_OP_IMM,
+                                        .imm = static_cast<int64_t>(u64_max),
+                                    },
                             },
                     },
             },
