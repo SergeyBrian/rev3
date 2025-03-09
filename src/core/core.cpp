@@ -1,5 +1,7 @@
 #include "core.hpp"
+
 #include <iostream>
+#include <sstream>
 
 #include "../utils/logger.hpp"
 #include "../config/config.hpp"
@@ -201,6 +203,43 @@ Err DoIATXrefsSearch(Target &target) {
     return err;
 }
 
+void FindInternalFunctions(Target &target) {
+    auto prev_instr_it = target.disassembly.instr_map.begin();
+    auto [_, prev_instr] = *prev_instr_it;
+    for (const auto &[addr, instr] : target.disassembly.instr_map) {
+        if (instr->id == X86_INS_MOV && prev_instr->id == X86_INS_PUSH) {
+            auto mov_ops = instr->detail->x86.operands;
+            auto push_ops = prev_instr->detail->x86.operands;
+            if (push_ops[0].reg == X86_REG_EBP &&
+                (mov_ops[0].reg == X86_REG_EBP &&
+                 mov_ops[1].reg == X86_REG_ESP)) {
+                u64 func_addr = prev_instr->address;
+                // Processing case when MSVC inserts a 2-byte nop before prolog
+                if (target.disassembly.instr_map.contains(func_addr - 2)) {
+                    const auto nop_instr =
+                        target.disassembly.instr_map.at(func_addr - 2);
+                    auto nop_ops = nop_instr->detail->x86.operands;
+                    if (nop_instr->id == X86_INS_MOV &&
+                        nop_ops[0].reg == nop_ops[1].reg) {
+                        func_addr = nop_instr->address;
+                    }
+                }
+                if (!target.functions.contains(func_addr)) {
+                    auto func = new Function();
+                    func->address = func_addr;
+                    func->display_name =
+                        (std::ostringstream()
+                         << "sub_" << std::hex << func->address)
+                            .str();
+                    target.functions[func_addr] = func;
+                }
+            }
+        }
+
+        prev_instr = instr;
+    }
+}
+
 Err DoXrefsSearch(Target &target) {
     Err err{};
 
@@ -301,46 +340,14 @@ void Run() {
         }
         target.MapFunctions();
 
+        FindInternalFunctions(target);
+
         static_analysis::FindStrings(target);
         static_analysis::FindReferences(target);
         static_analysis::FindCallsArgs(target);
 
         if (config::Get().static_analysis.inspect_address) {
-            auto node = target.cfg.FindNode(
-                config::Get().static_analysis.inspect_address);
-            if (!node) {
-                logger::Error("Can't inspect node at 0x%llx",
-                              config::Get().static_analysis.inspect_address);
-            } else {
-                printf("%s=== Inspecting node 0x%llx ===%s\n", COLOR_GREEN,
-                       node->block.address, COLOR_RESET);
-                if (node->block.address !=
-                    config::Get().static_analysis.inspect_address) {
-                    logger::Warn(
-                        "!! There is no node starting at 0x%llx.\n"
-                        "Displaying node containing this address. If you "
-                        "expected to see something else, check the requested "
-                        "address.",
-                        config::Get().static_analysis.inspect_address);
-                }
-                while (node) {
-                    std::cout << target.GetString(node->block.real_address,
-                                                  node->block.size);
-                    if (node->out_edges.empty()) break;
-                    if (node->out_edges.begin()->type ==
-                        static_analysis::CFGEdgeType::Ret) {
-                        std::cout << "<<<<<<<<<<<<<<<<<<<<<\n";
-                        break;
-                    } else if (node->out_edges.begin()->type ==
-                               static_analysis::CFGEdgeType::Jmp) {
-                        node = node->out_edges.begin()->target;
-                        std::cout << ">>>>>>>>>>>>>>>>>>>>>\n";
-                    } else {
-                        node = target.cfg.FindNode(node->block.next_address);
-                        std::cout << "---------------------\n";
-                    }
-                }
-            }
+            Inspect(&target, config::Get().static_analysis.inspect_address);
         }
 
         const Function *func{};
@@ -373,7 +380,11 @@ outer_break:
         if (xrefs.size() == 0) {
             logger::Error("No references found");
         } else {
-            logger::Okay("%d references found", xrefs.size());
+            logger::Info("%d references found", xrefs.size());
+        }
+
+        for (const auto &xref : xrefs) {
+            std::cout << target.GetNodeString(xref);
         }
 
         logger::Info("%d paths found", paths.size());
@@ -400,5 +411,52 @@ Target *GetActiveTarget() {
     }
 
     return nullptr;
+}
+
+void Inspect(const Target *target, u64 address) {
+    auto node = target->cfg.FindNode(address);
+    if (!node) {
+        node = target->cfg.FindNodeContaining(address);
+    }
+    if (!node) {
+        logger::Error("Can't inspect node at 0x%llx", address);
+    } else {
+        printf("%s=== Inspecting node 0x%llx ===%s\n", COLOR_GREEN,
+               node->block.address, COLOR_RESET);
+        if (node->block.address != address) {
+            logger::Warn(
+                "!! There is no node starting at 0x%llx.\n"
+                "Displaying node containing this address. If you "
+                "expected to see something else, check the requested "
+                "address.",
+                address);
+        }
+        while (node) {
+            std::cout << target->GetString(node->block.real_address,
+                                           node->block.size);
+            if (node->out_edges.empty()) break;
+            if (node->out_edges.begin()->type ==
+                static_analysis::CFGEdgeType::Ret) {
+                std::cout << "<<<<<<<<<<<<<<<<<<<<<\n";
+                break;
+            } else if (node->out_edges.begin()->type ==
+                       static_analysis::CFGEdgeType::Jmp) {
+                node = node->out_edges.begin()->target;
+                std::cout << ">>>>>>>>>>>>>>>>>>>>>\n";
+            } else {
+                node = target->cfg.FindNode(node->block.next_address);
+                std::cout << "---------------------\n";
+            }
+        }
+    }
+}
+
+void Info(const Target *target) {
+    printf("Image base: 0x%llx\n", target->bin_info->ImageBase());
+    printf("Sections:\n");
+    for (const auto &section : target->sections) {
+        printf("\t%s: 0x%llx\n", section.name.c_str(), section.address);
+    }
+    printf("Entrypoint: 0x%llx\n", target->bin_info->EntryPoint());
 }
 }  // namespace core

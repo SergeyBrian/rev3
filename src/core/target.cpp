@@ -41,11 +41,6 @@ void Target::MapFunctions() {
                 .address = func.address,
                 .direct = true,
             }};
-            for (const auto &[xref_address, _] : func.xrefs) {
-                auto node = cfg.FindNodeContaining(xref_address);
-                if (!node) continue;
-                functions[node->block.real_address] = &func;
-            }
         }
     }
 }
@@ -73,7 +68,12 @@ std::string Target::GetEnrichedDisassembly(u64 address, usize size) {
 
 static std::map<u64, std::map<u64, std::string>> strings_cache;
 
-std::string Target::GetString(u64 addr, usize size) {
+std::string Target::GetNodeString(u64 addr) const {
+    auto node = cfg.FindNode(addr);
+    return GetString(node->block.address, node->block.size);
+}
+
+std::string Target::GetString(u64 addr, usize size) const {
     auto it = disassembly.instr_map.lower_bound(addr);
     if (size == 0) size += it->second->size;
     if (strings_cache.contains(addr) && strings_cache[addr].contains(size)) {

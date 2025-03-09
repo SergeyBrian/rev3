@@ -8,7 +8,7 @@ namespace core::static_analysis {
 const u64 MagicHashNumber = 0x9e3779b97f4a7c15;
 
 void FindCallArgs(const Target &target, Xref *call) {
-    logger::Warn("Searching for args at 0x%llx", call->address);
+    logger::Debug("Searching for args at 0x%llx", call->address);
     auto node = target.cfg.FindNodeContaining(call->address);
     if (!node) return;
 
@@ -17,14 +17,14 @@ void FindCallArgs(const Target &target, Xref *call) {
         const auto &[address, instr] = *it;
         if (instr->address >= node->block.next_address) break;
         if (instr->id != X86_INS_PUSH) continue;
-        logger::Warn("Found push at 0x%llx", instr->address);
+        logger::Debug("Found push at 0x%llx", instr->address);
 
         if (target.references.contains(instr->address)) {
-            logger::Warn("Reference ok. +1 arg");
+            logger::Debug("Reference ok. +1 arg");
             call->args.insert(call->args.begin(), 1,
                               target.references.at(instr->address)[0]);
         } else {
-            logger::Warn("Reference not ok. +1 arg");
+            logger::Debug("Reference not ok. +1 arg");
             call->args.insert(call->args.begin(), 1,
                               {
                                   .type = Reference::Type::Unknown,
@@ -131,6 +131,7 @@ void FindReferences(Target &target) {
     std::map<u64, ReferenceHolder> refs;
 
     for (const auto &[addr, instr] : target.disassembly.instr_map) {
+        if (instr->id == X86_OP_INVALID) continue;
         logger::Debug("Ref search in 0x%llx", addr);
         u8 op_count = instr->detail->x86.op_count;
         auto ops = instr->detail->x86.operands;

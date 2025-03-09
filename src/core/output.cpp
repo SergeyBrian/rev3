@@ -44,4 +44,12 @@ void PrintImports(const Target &target) {
         }
     }
 }
+
+void PrintFunctions(const Target *target) {
+    std::cout << "=== Functions table ===\n";
+    for (const auto &[addr, func] : target->functions) {
+        printf("@%s at 0x%llx %s%s%s\n", func->display_name.c_str(), addr,
+               COLOR_GRAY, func->comment.c_str(), COLOR_RESET);
+    }
+}
 }  // namespace core::output

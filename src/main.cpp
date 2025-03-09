@@ -1,6 +1,6 @@
 #include "config/config.hpp"
 #include "core/core.hpp"
-#include "ui/ui.hpp"
+#include "cli/cli.hpp"
 
 int main(int argc, char **argv) {
     config::InitFromArgs(argc, argv);
@@ -11,7 +11,7 @@ int main(int argc, char **argv) {
 
     core::Run();
     if (config::Get().ui) {
-        ui::Run();
+        cli::Run(core::GetActiveTarget());
     }
     return 0;
 }

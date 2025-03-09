@@ -1,6 +1,7 @@
 #ifndef UTILS_UTILS_HPP
 #define UTILS_UTILS_HPP
 
+#include "alias.hpp"
 #define UNREACHABLE assert(false && "This branch should never execute");
 
 #include <string>
@@ -12,6 +13,10 @@ inline bool contains(C &&c, T e) {
 };
 
 std::string UnescapeString(const std::string &str);
+
+inline bool IsMSVCAligned(u64 address) {
+    return (address % 4 == 0 || address % 16 == 0);
+}
 }  // namespace utils
 
 #endif

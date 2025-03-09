@@ -129,14 +129,21 @@ set(core
     src/core/static/calls/calls.cpp
 )
 
+set(cli
+    src/cli/cli.hpp
+    src/cli/cli.cpp
+)
+
 add_executable(${CMAKE_PROJECT_NAME} src/main.cpp
     ${common}
     ${core}
+    ${cli}
 )
 
 add_executable(${CMAKE_PROJECT_NAME}x32 src/main.cpp
     ${common}
     ${core}
+    ${cli}
 )
 
 set(libs

@@ -94,7 +94,8 @@ struct Target {
     std::string GetFunctionNameByAddress(u64 address);
     std::string GetEnrichedDisassembly(u64 address = 0, usize size = 0);
 
-    std::string GetString(u64 addr, usize size);
+    std::string GetString(u64 addr, usize size = 0) const;
+    std::string GetNodeString(u64 addr) const;
 
     explicit Target(const std::string &filename);
     void MapFunctions();
