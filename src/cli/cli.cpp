@@ -17,6 +17,13 @@ auto InspectFunc = [](const std::vector<ArgValue> &args) -> int {
     return 0;
 };
 
+auto InspectAddressFunc = [](const std::vector<ArgValue> &args) -> int {
+    u64 address = args[0].number;
+    u64 size = args[1].number;
+    std::cout << target->GetString(address, size);
+    return 0;
+};
+
 auto InfoFunc = [](const std::vector<ArgValue> &args) -> int {
     (void)args;
     core::Info(target);
@@ -50,6 +57,14 @@ static std::map<std::string, CommandDef> commands = {
             InspectFunc,
         },
 
+    },
+    {
+        "ia",
+        {
+            "ia <address> <size> - inspect disassembly from specific <address>",
+            {ArgType::Number, ArgType::Number},
+            InspectAddressFunc,
+        },
     },
     {
         "info",

@@ -68,10 +68,13 @@ struct Section {
 struct String {
     enum class Type : u8 {
         Data,
+        Stack,
     } type;
     std::string content{};
+    bool encrypted{};
 
     u64 address{};
+    u64 offset{};
 };
 
 struct Target {

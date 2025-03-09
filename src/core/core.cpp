@@ -96,7 +96,7 @@ Err AnalyzeImports(Target &target) {
     }
 
     return err;
-}  // namespace core
+}
 
 Err DoIATXrefsSearch(Target &target) {
     Err err{};
@@ -206,8 +206,14 @@ Err DoIATXrefsSearch(Target &target) {
 void FindInternalFunctions(Target &target) {
     auto prev_instr_it = target.disassembly.instr_map.begin();
     auto [_, prev_instr] = *prev_instr_it;
+    std::map<u64, u64> tmp_refs;
     for (const auto &[addr, instr] : target.disassembly.instr_map) {
-        if (instr->id == X86_INS_MOV && prev_instr->id == X86_INS_PUSH) {
+        if (instr->id == X86_INS_CALL) {
+            if (instr->detail->x86.operands[0].type == X86_OP_IMM) {
+                u64 call_addr = instr->detail->x86.operands[0].imm;
+                tmp_refs[addr] = call_addr;
+            }
+        } else if (instr->id == X86_INS_MOV && prev_instr->id == X86_INS_PUSH) {
             auto mov_ops = instr->detail->x86.operands;
             auto push_ops = prev_instr->detail->x86.operands;
             if (push_ops[0].reg == X86_REG_EBP &&
@@ -237,6 +243,15 @@ void FindInternalFunctions(Target &target) {
         }
 
         prev_instr = instr;
+    }
+
+    for (const auto &[ref_addr, call_addr] : tmp_refs) {
+        if (target.functions.contains(call_addr)) {
+            logger::Okay("Insert ref 0x%llx -> 0x%llx", ref_addr, call_addr);
+            target.functions.at(call_addr)->xrefs[ref_addr] = {
+                .address = ref_addr,
+            };
+        }
     }
 }
 
@@ -420,18 +435,31 @@ void Inspect(const Target *target, u64 address) {
     }
     if (!node) {
         logger::Error("Can't inspect node at 0x%llx", address);
+        if (target->disassembly.instr_map.contains(address)) {
+            logger::Warn(
+                "Given address is not included in any node of control flow "
+                "graph, but is disassembled.\nThis indicates that there is no "
+                "direct calls to this address.\nYou can view disassembly by "
+                "executing the `ia <address>` command");
+        }
     } else {
         printf("%s=== Inspecting node 0x%llx ===%s\n", COLOR_GREEN,
                node->block.address, COLOR_RESET);
         if (node->block.address != address) {
             logger::Warn(
-                "!! There is no node starting at 0x%llx.\n"
+                "There is no node starting at 0x%llx.\n"
                 "Displaying node containing this address. If you "
                 "expected to see something else, check the requested "
                 "address.",
                 address);
         }
+        std::set<u64> visited;
         while (node) {
+            if (visited.contains(node->block.address)) {
+                logger::Warn("Loop found");
+                break;
+            }
+            visited.insert(node->block.address);
             std::cout << target->GetString(node->block.real_address,
                                            node->block.size);
             if (node->out_edges.empty()) break;

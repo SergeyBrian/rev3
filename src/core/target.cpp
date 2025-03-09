@@ -101,26 +101,29 @@ std::string Target::GetString(u64 addr, usize size) const {
                         ss << (ref.direct ? COLOR_YELLOW : COLOR_GRAY) << "\t@"
                            << func->display_name << COLOR_RESET;
                         ss << COLOR_GREEN << " (";
-                        for (const auto &arg : func->xrefs.at(address).args) {
-                            ss << " ";
-                            switch (arg.type) {
-                                case Reference::Type::Immediate:
-                                    ss << "0x" << arg.value;
-                                    break;
-                                case Reference::Type::Unknown:
-                                    ss << "?0x" << arg.address;
-                                    break;
-                                case Reference::Type::Function:
-                                    ss << "@"
-                                       << functions.at(arg.address)
-                                              ->display_name;
-                                    break;
-                                case Reference::Type::String:
-                                    ss << "`"
-                                       << utils::UnescapeString(
-                                              strings_map.at(arg.address))
-                                       << "`";
-                                    break;
+                        if (func->xrefs.contains(address)) {
+                            for (const auto &arg :
+                                 func->xrefs.at(address).args) {
+                                ss << " ";
+                                switch (arg.type) {
+                                    case Reference::Type::Immediate:
+                                        ss << "0x" << arg.value;
+                                        break;
+                                    case Reference::Type::Unknown:
+                                        ss << "?0x" << arg.address;
+                                        break;
+                                    case Reference::Type::Function:
+                                        ss << "@"
+                                           << functions.at(arg.address)
+                                                  ->display_name;
+                                        break;
+                                    case Reference::Type::String:
+                                        ss << "`"
+                                           << utils::UnescapeString(
+                                                  strings_map.at(arg.address))
+                                           << "`";
+                                        break;
+                                }
                             }
                         }
                         ss << ")" << COLOR_RESET;

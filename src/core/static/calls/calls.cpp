@@ -98,6 +98,7 @@ struct ReferenceHolder {
         }
 
         switch (static_cast<x86_insn>(instr->id)) {
+            case X86_INS_LEA:
             case X86_INS_MOV:
                 switch (ops[0].type) {
                     case X86_OP_REG:
@@ -167,7 +168,10 @@ void FindReferences(Target &target) {
 
         for (u8 i = 0; i < op_count; i++) {
             u64 ref_addr{};
-            if (ops[i].type == X86_OP_MEM) {
+            if (target.strings_map.contains(addr)) {
+                // For strings located on stack
+                ref_addr = addr;
+            } else if (ops[i].type == X86_OP_MEM) {
                 ref_addr =
                     static_analysis::disassembler::SolveMemAddress(instr);
             } else if (ops[i].type == X86_OP_IMM) {
@@ -211,16 +215,28 @@ void FindReferences(Target &target) {
                 continue;
             }
             call_processed = true;
-            for (const auto &[func_addr, func] : target.functions) {
-                if (func->xrefs.contains(ref_addr -
-                                         target.bin_info->ImageBase())) {
-                    final_ref = {
-                        .type = Reference::Type::Function,
-                        .address = func->address,
-                        .direct = true,
-                    };
-                    target.references[addr].push_back(final_ref);
-                    break;
+            if (ref_addr > target.bin_info->ImageBase())
+                ref_addr -= target.bin_info->ImageBase();
+            if (target.functions.contains(ref_addr)) {
+                logger::Okay("Valid direct call to 0x%llx", ref_addr);
+                final_ref = {
+                    .type = Reference::Type::Function,
+                    .address = ref_addr,
+                    .direct = true,
+                };
+                target.references[addr].push_back(final_ref);
+            } else {
+                for (const auto &[func_addr, func] : target.functions) {
+                    if (func->xrefs.contains(ref_addr)) {
+                        logger::Okay("Valid call to 0x%llx", func->address);
+                        final_ref = {
+                            .type = Reference::Type::Function,
+                            .address = func->address,
+                            .direct = true,
+                        };
+                        target.references[addr].push_back(final_ref);
+                        break;
+                    }
                 }
             }
         }
@@ -240,6 +256,7 @@ void FindReferences(Target &target) {
 void FindCallsArgs(Target &target) {
     std::set<u64> visited;
     for (const auto &[_, func] : target.functions) {
+        logger::Debug("Call args search candidate: 0x%llx", func->address);
         for (auto &[xref_addr, xref] : func->xrefs) {
             if (visited.contains(xref_addr)) continue;
             visited.insert(xref_addr);
