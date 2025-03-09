@@ -131,6 +131,8 @@ set(core
     src/core/dynamic/strings/strings.cpp
     src/core/static/patterns/patterns.hpp
     src/core/static/patterns/patterns.cpp
+    src/core/static/patterns/signatures.hpp
+    src/core/static/patterns/signatures.cpp
 )
 
 set(cli

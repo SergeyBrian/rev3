@@ -155,6 +155,17 @@ void FindReferences(Target &target) {
             refs.erase(ReferenceHolder::RegHash(X86_REG_RAX));
         }
 
+        if (instr->id == X86_INS_MOV &&
+            (ops[0].reg == X86_REG_EBP || ops[0].reg == X86_REG_RBP)) {
+            for (auto it = refs.begin(); it != refs.end();) {
+                if (it->second.type == ReferenceHolder::Type::Stack) {
+                    it = refs.erase(it);
+                } else {
+                    it++;
+                }
+            }
+        }
+
         // cur_ref represents the ReferenceHolder assigned to current
         // instruction due to the specifics of ReferenceHolder, one instruction
         // can only hold one reference. i.e. if instruction is mov reg, <ref>;

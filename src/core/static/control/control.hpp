@@ -87,8 +87,8 @@ struct Operand {
     u64 mem_address{};
 
     Operand() = default;
-    Operand(Register reg) : type(Type::Register), reg(reg) {};
-    Operand(u64 constant) : type(Type::Constant), constant(constant) {};
+    Operand(Register reg) : type(Type::Register), reg(reg){};
+    Operand(u64 constant) : type(Type::Constant), constant(constant){};
 };
 
 struct RegCmpCondition {
@@ -168,6 +168,7 @@ struct ControlFlowGraph {
         std::vector<core::static_analysis::BaseBlock> blocks,
         std::vector<EdgeTemplate> edges);
     std::vector<u64> FindXrefs(std::string label);
+    std::vector<CFGNode *> FindPath(u64 start, u64 target) const;
 
 private:
     u64 fake_node_counter = 0x1000 - 1;

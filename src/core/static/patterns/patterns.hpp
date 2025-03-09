@@ -17,12 +17,14 @@ struct Pattern {
             Any,
             Insn,
             Jump,
+            Call,
         } type;
 
         struct Insn {
             x86_insn id;
             cs_x86_op left_op{};
             cs_x86_op right_op{};
+            cs_x86_op third_op{};
         } insn{};
 
         struct Jump {
@@ -42,6 +44,8 @@ struct Pattern {
         } jump{};
 
         u64 satisfied_by{};
+
+        std::string call_func;
     } stmt;
     i64 count;
 };

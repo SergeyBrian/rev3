@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <cassert>
+#include <deque>
+#include <set>
 
 #include "capstone/capstone.h"
 
@@ -865,6 +867,58 @@ std::vector<u64> ControlFlowGraph::FindXrefs(std::string label) {
             res.push_back(addr);
         }
     }
+
+    return res;
+}
+
+std::vector<CFGNode *> ControlFlowGraph::FindPath(u64 start, u64 target) const {
+    std::vector<CFGNode *> res{};
+
+    logger::Info("Searching for path 0x%llx -> 0x%llx", start, target);
+
+    auto start_node = FindNodeContaining(start);
+    if (!start_node) {
+        logger::Error("Unable to find starting node");
+        return res;
+    }
+
+    auto target_node = FindNodeContaining(target);
+    if (!target_node) {
+        logger::Error("Unable to find target node");
+        return res;
+    }
+    /**/
+    /*std::deque<CFGNode *> stack{};*/
+    /*std::set<CFGNode *> visited{};*/
+    /**/
+    /*stack.push_back(start_node);*/
+    /**/
+    /*while (!stack.empty()) {*/
+    /*    auto node = stack.back();*/
+    /*    stack.pop_back();*/
+    /*    if (visited.contains(node)) {*/
+    /*        continue;*/
+    /*    }*/
+    /**/
+    /*    if (node == target_node) {*/
+    /*        logger::Okay("Success!");*/
+    /*        break;*/
+    /*    }*/
+    /**/
+    /*    bool fully_explored = true;*/
+    /*    for (const auto &edge : node->out_edges) {*/
+    /*        if (edge.type == CFGEdgeType::Ret ||*/
+    /*            visited.contains(edge.target)) {*/
+    /*            continue;*/
+    /*        }*/
+    /*        fully_explored = false;*/
+    /*        stack.push_back(edge.target);*/
+    /*        break;*/
+    /*    }*/
+    /*    if (fully_explored) {*/
+    /*        visited.insert(node);*/
+    /*    }*/
+    /*}*/
 
     return res;
 }

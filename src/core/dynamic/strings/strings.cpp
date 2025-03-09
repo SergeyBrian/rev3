@@ -35,6 +35,7 @@ void DecryptStrings(Target *target) {
                     {
                         .type = Pattern::Stmt::Type::Any,
                     },
+                .count = -1,
             },
             {
                 .stmt =
@@ -52,6 +53,7 @@ void DecryptStrings(Target *target) {
                     {
                         .type = Pattern::Stmt::Type::Any,
                     },
+                .count = -1,
             },
             {
                 .stmt =

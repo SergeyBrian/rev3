@@ -4,8 +4,38 @@
 
 namespace core::static_analysis {
 
-bool InstrMatchesPattern(cs_insn *instr, std::vector<Pattern> &pattern,
-                         u64 *step) {
+bool MatchOp(cs_x86_op first, cs_x86_op second) {
+    if (first.type != X86_OP_INVALID && first.type != second.type) {
+        return false;
+    }
+
+    switch (first.type) {
+        case X86_OP_INVALID:
+            return true;
+        case X86_OP_REG:
+            if (first.reg != X86_REG_INVALID && first.reg != second.reg) {
+                return false;
+            }
+            break;
+        case X86_OP_IMM:
+            if (first.imm != second.imm) {
+                return false;
+            }
+            break;
+        case X86_OP_MEM:
+            if (first.mem.base != X86_REG_INVALID &&
+                first.mem.base != second.mem.base) {
+                return false;
+            }
+            break;
+    }
+
+    return true;
+}
+
+bool InstrMatchesPattern(const Target *target, cs_insn *instr,
+                         std::vector<Pattern> &pattern, u64 *step) {
+    if (instr->id == X86_INS_INVALID) return false;
     auto detail = instr->detail->x86;
     if (*step >= pattern.size()) return false;
     auto &cur_pattern = pattern.at(*step);
@@ -16,19 +46,33 @@ bool InstrMatchesPattern(cs_insn *instr, std::vector<Pattern> &pattern,
     }
     switch (cur_pattern.stmt.type) {
         case Pattern::Stmt::Type::Any:
-            *step += 1;
+            if (--cur_pattern.count < 0) {
+                *step += 1;
+            }
             return true;
+        case Pattern::Stmt::Type::Call: {
+            u64 call_addr = detail.operands[0].imm;
+            if (instr->id != X86_INS_CALL ||
+                !target->functions.contains(call_addr) ||
+                target->functions.at(call_addr)->display_name !=
+                    cur_pattern.stmt.call_func) {
+                return skip_instructions;
+            }
+            *step += 1;
+            cur_pattern.stmt.satisfied_by = instr->address;
+            return true;
+        }
         case Pattern::Stmt::Type::Insn:
             if (cur_pattern.stmt.insn.id != instr->id) {
                 return skip_instructions;
             }
-            if (cur_pattern.stmt.insn.left_op.type != X86_OP_INVALID &&
-                cur_pattern.stmt.insn.left_op.type != detail.operands[0].type) {
+            if (!MatchOp(cur_pattern.stmt.insn.left_op, detail.operands[0])) {
                 return skip_instructions;
             }
-            if (cur_pattern.stmt.insn.right_op.type != X86_OP_INVALID &&
-                cur_pattern.stmt.insn.right_op.type !=
-                    detail.operands[1].type) {
+            if (!MatchOp(cur_pattern.stmt.insn.right_op, detail.operands[1])) {
+                return skip_instructions;
+            }
+            if (!MatchOp(cur_pattern.stmt.insn.third_op, detail.operands[2])) {
                 return skip_instructions;
             }
             *step += 1;
@@ -91,6 +135,9 @@ bool InstrMatchesPattern(cs_insn *instr, std::vector<Pattern> &pattern,
     }
 }
 
+// Check if function matches given pattern.
+// Be aware that pattern will become unusable for next operation since function
+// saves some results in the pattern reference. Pass a separate copy
 bool MatchPattern(const Target *target, const Function *function,
                   std::vector<Pattern> &pattern) {
     auto it = target->disassembly.instr_map.lower_bound(function->address);
@@ -98,7 +145,7 @@ bool MatchPattern(const Target *target, const Function *function,
     u64 pattern_step = 0;
     for (; it != target->disassembly.instr_map.end(); it = std::next(it)) {
         const auto &[addr, instr] = *it;
-        if (!InstrMatchesPattern(instr, pattern, &pattern_step)) {
+        if (!InstrMatchesPattern(target, instr, pattern, &pattern_step)) {
             logger::Debug("Pattern statement %d not satisfied", pattern_step);
             return false;
         }

@@ -11,6 +11,7 @@ Target *GetActiveTarget();
 
 void Inspect(const Target *target, u64 address);
 void Info(const Target *target);
+void Solve(const Target *target, u64 address);
 }  // namespace core
 
 #endif

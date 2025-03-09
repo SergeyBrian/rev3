@@ -14,6 +14,7 @@
 #include "static/parser/parser.hpp"
 #include "static/control/control.hpp"
 #include "static/strings/strings.hpp"
+#include "static/patterns/signatures.hpp"
 #include "dynamic/strings/strings.hpp"
 
 namespace core {
@@ -357,6 +358,7 @@ void Run() {
         target.MapFunctions();
 
         FindInternalFunctions(target);
+        static_analysis::ScanForKnownFunctionSignatures(&target);
 
         static_analysis::FindStrings(target);
         static_analysis::FindReferences(target);
@@ -402,19 +404,19 @@ outer_break:
 
         for (const auto &xref : xrefs) {
             std::cout << target.GetNodeString(xref);
+            std::cout << "-----------------\n";
         }
 
-        logger::Info("%d paths found", paths.size());
+        xrefs = target.cfg.FindXrefs("ReadFile");
+        if (xrefs.size() == 0) {
+            logger::Error("No references found");
+        } else {
+            logger::Info("%d references found", xrefs.size());
+        }
 
-        for (const auto &[t, path] : paths) {
-            logger::Info("=== PATH TO 0x%llx ===", t);
-            std::cout << std::hex;
-            for (const auto &vertex : path) {
-                std::cout << "==============================\n";
-                std::cout << target.GetString(
-                    vertex, target.cfg.FindNode(vertex)->block.size);
-            }
-            std::cout << "\n\n";
+        for (const auto &xref : xrefs) {
+            std::cout << target.GetNodeString(xref);
+            std::cout << "-----------------\n";
         }
     }
     logger::Okay("All done. Closing");
@@ -488,5 +490,10 @@ void Info(const Target *target) {
         printf("\t%s: 0x%llx\n", section.name.c_str(), section.address);
     }
     printf("Entrypoint: 0x%llx\n", target->bin_info->EntryPoint());
+}
+
+void Solve(const Target *target, u64 address) {
+    std::vector<static_analysis::CFGNode *> path =
+        target->cfg.FindPath(target->bin_info->EntryPoint(), address);
 }
 }  // namespace core

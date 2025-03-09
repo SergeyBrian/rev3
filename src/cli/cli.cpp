@@ -42,6 +42,12 @@ auto FuncsFunc = [](const std::vector<ArgValue> &args) -> int {
     return 0;
 };
 
+auto SolveFunc = [](const std::vector<ArgValue> &args) -> int {
+    u64 address = args[0].number;
+    core::Solve(target, address);
+    return 0;
+};
+
 auto ExitFunc = [](const std::vector<ArgValue> &args) -> int {
     (void)args;
     std::cout << "Bye :)\n";
@@ -80,6 +86,14 @@ static std::map<std::string, CommandDef> commands = {
             "imports - view imports table",
             {},
             ImportsFunc,
+        },
+    },
+    {
+        "solve",
+        {
+            "solve <address> - find solution leading to <address>",
+            {ArgType::Number},
+            SolveFunc,
         },
     },
     {
