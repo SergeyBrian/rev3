@@ -18,8 +18,7 @@ bool MatchOp(cs_x86_op first, cs_x86_op second) {
             }
             break;
         case X86_OP_IMM:
-            if (first.imm != static_cast<int64_t>(u64_max) &&
-                first.imm != second.imm) {
+            if (first.imm != InvalidImm && first.imm != second.imm) {
                 return false;
             }
             break;
@@ -141,9 +140,10 @@ bool InstrMatchesPattern(const Target *target, cs_insn *instr,
 // Check if function matches given pattern.
 // Be aware that pattern will become unusable for next operation since function
 // saves some results in the pattern reference. Pass a separate copy
-bool MatchPattern(const Target *target, const Function *function,
+bool MatchPattern(const Target *target, u64 address,
                   std::vector<Pattern> &pattern) {
-    auto it = target->disassembly.instr_map.lower_bound(function->address);
+    logger::Debug("Checking func at 0x%llx for pattern", address);
+    auto it = target->disassembly.instr_map.lower_bound(address);
 
     u64 pattern_step = 0;
     for (; it != target->disassembly.instr_map.end(); it = std::next(it)) {

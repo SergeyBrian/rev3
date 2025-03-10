@@ -24,11 +24,16 @@ struct StaticAnalysisConfig {
     bool do_executable_check;
 };
 
+struct DynamicAnalysisConfig {
+    u64 target;
+};
+
 class Config {
 public:
     std::vector<std::string> input_files;
     bool verbose_logs;
     StaticAnalysisConfig static_analysis;
+    DynamicAnalysisConfig dynamic_analysis;
     bool ui;
     bool do_disasm_fixes;
 

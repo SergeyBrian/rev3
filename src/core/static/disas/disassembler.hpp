@@ -61,6 +61,7 @@ u64 SolveMemAddress(const cs_insn *instr);
 u64 SolveMemValue(const cs_insn *instr, BinInfo *bin);
 void ResetCache();
 bool CreatesBranch(x86_insn instr);
+csh GetHandle();
 }  // namespace core::static_analysis::disassembler
 
 #endif

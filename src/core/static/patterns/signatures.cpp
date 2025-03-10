@@ -5,10 +5,12 @@
 #include "../../../utils/logger.hpp"
 
 namespace core::static_analysis {
+static const i64 WindowsDefaultSecurityCookie = 0x0BB40E64E;
+
 static const std::vector<std::pair<std::string, std::vector<Pattern>>>
     signatures{
         {
-            "___acrt_iob_func",
+            "_acrt_iob_func",
             {
                 {
                     .stmt = {.type = Pattern::Stmt::Type::Insn,
@@ -99,6 +101,58 @@ static const std::vector<std::pair<std::string, std::vector<Pattern>>>
 
         },
         {
+            "_security_init_cookie",
+            {
+                {
+                    .stmt =
+                        {
+                            .type = Pattern::Stmt::Type::Any,
+                        },
+                    .count = 7,
+                },
+                {
+                    .stmt =
+                        {
+                            .type = Pattern::Stmt::Type::Insn,
+                            .insn =
+                                {
+                                    .id = X86_INS_MOV,
+                                    .left_op =
+                                        {
+                                            .type = X86_OP_REG,
+                                            .reg = X86_REG_EDI,
+                                        },
+                                    .right_op =
+                                        {
+                                            .type = X86_OP_IMM,
+                                            .imm = WindowsDefaultSecurityCookie,
+                                        },
+                                },
+                        },
+                },
+                {
+                    .stmt =
+                        {
+                            .type = Pattern::Stmt::Type::Insn,
+                            .insn =
+                                {
+                                    .id = X86_INS_MOV,
+                                    .left_op =
+                                        {
+                                            .type = X86_OP_REG,
+                                            .reg = X86_REG_ESI,
+                                        },
+                                    .right_op =
+                                        {
+                                            .type = X86_OP_IMM,
+                                            .imm = 0x0FFFF0000,
+                                        },
+                                },
+                        },
+                },
+            },
+        },
+        {
             "printf",
             {
                 {
@@ -127,7 +181,7 @@ static const std::vector<std::pair<std::string, std::vector<Pattern>>>
                     .stmt =
                         {
                             .type = Pattern::Stmt::Type::Call,
-                            .call_func = "___acrt_iob_func",
+                            .call_func = "_acrt_iob_func",
                         },
                 },
             },
@@ -161,7 +215,7 @@ static const std::vector<std::pair<std::string, std::vector<Pattern>>>
                     .stmt =
                         {
                             .type = Pattern::Stmt::Type::Call,
-                            .call_func = "___acrt_iob_func",
+                            .call_func = "_acrt_iob_func",
                         },
                 },
             },
@@ -172,7 +226,7 @@ void ScanForKnownFunctionSignatures(Target *target) {
     for (const auto &[name, pattern] : signatures) {
         for (auto [_, func] : target->functions) {
             std::vector<Pattern> tmp = pattern;
-            if (MatchPattern(target, func, tmp)) {
+            if (MatchPattern(target, func->address, tmp)) {
                 logger::Okay("Recognized function %s at 0x%llx", name.c_str(),
                              func->address);
                 func->display_name = name;

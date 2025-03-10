@@ -141,6 +141,105 @@ CFGEdgeType GetEdgeType(u16 opcode) {
     }
 }
 
+static std::string OperandToString(const Operand &op) {
+    switch (op.type) {
+        case Operand::Type::Register:
+            return cs_reg_name(disassembler::GetHandle(), op.reg);
+
+        case Operand::Type::Constant: {
+            std::ostringstream ss;
+            ss << std::hex << "0x" << op.constant;
+            return ss.str();
+        }
+
+        case Operand::Type::Mem: {
+            std::ostringstream ss;
+            if (op.mem_address) {
+                ss << "[0x" << std::hex << op.mem_address << "]";
+            } else {
+                i64 disp = static_cast<i64>(op.mem.disp);
+                bool negative = false;
+                if (disp < 0) {
+                    disp *= -1;
+                    negative = true;
+                }
+                ss << "[" << cs_reg_name(disassembler::GetHandle(), op.mem.base)
+                   << (negative ? " -" : " +") << " 0x" << std::hex << disp
+                   << "]";
+            }
+            return ss.str();
+        }
+
+        default:
+            return "UnknownOperand";
+    }
+}
+
+// Утилита для перевода Operator в строку
+static std::string OperatorToString(Operator op, bool inverted) {
+    switch (op) {
+        case Operator::Equal:
+            return (inverted) ? "!=" : "==";
+        case Operator::GreaterThan:
+            return (inverted) ? "<=" : ">";
+        case Operator::LessThan:
+            return (inverted) ? ">=" : "<";
+        case Operator::GreaterThanOrEqual:
+            return (inverted) ? "<" : ">=";
+        case Operator::LessThanOrEqual:
+            return (inverted) ? ">" : "<=";
+        case Operator::NotEqual:
+            return (inverted) ? "==" : "!=";
+        default:
+            return "??";
+    }
+}
+
+// Утилита для перевода набора Flag в строку
+static std::string FlagsToString(Flag f) {
+    // Можно выводить через побитовое сравнение
+    std::string result;
+    if ((f & Flag::ZF) == Flag::ZF) result += "ZF|";
+    if ((f & Flag::SF) == Flag::SF) result += "SF|";
+    if ((f & Flag::OF) == Flag::OF) result += "OF|";
+    if ((f & Flag::CF) == Flag::CF) result += "CF|";
+    if ((f & Flag::PF) == Flag::PF) result += "PF|";
+    if ((f & Flag::AF) == Flag::AF) result += "AF|";
+
+    // Удалим последнюю '|' если она есть
+    if (!result.empty()) {
+        result.pop_back();
+    }
+    return result.empty() ? "None" : result;
+}
+
+std::string Condition::ToString() const {
+    std::ostringstream ss;
+
+    switch (type) {
+        case Type::Flag: {
+            // Выводим, какие флаги важны для условия.
+            ss << "FlagCondition(" << FlagsToString(flags) << ")";
+        } break;
+
+        case Type::RegCmp: {
+            // Например: EAX == 0x10
+            // Используем OperatorToString и OperandToString, чтобы вывести
+            // красиво
+            ss << OperandToString(reg_cmp.lhs) << " "
+               << OperatorToString(reg_cmp.op, inverted) << " "
+               << OperandToString(reg_cmp.rhs);
+        } break;
+
+        default:
+            ss << "UnknownConditionType";
+            break;
+    }
+    ss << "\n";
+
+    return ss.str();
+}
+
 void CFGEdge::Log() const {
 #ifndef NDEBUG
     logger::Debug("0x%llx ==%s==> 0x%llx", source->block.address,
@@ -397,13 +496,17 @@ Operator OperatorFromInstr(const cs_insn *instr) {
         case X86_INS_JE:
             return Operator::Equal;
         case X86_INS_JGE:
+        case X86_INS_JAE:
             return Operator::GreaterThanOrEqual;
         case X86_INS_JG:
+        case X86_INS_JA:
         case X86_INS_JNS:
             return Operator::GreaterThan;
         case X86_INS_JLE:
+        case X86_INS_JBE:
             return Operator::LessThanOrEqual;
         case X86_INS_JL:
+        case X86_INS_JB:
         case X86_INS_JS:
             return Operator::LessThan;
         case X86_INS_JNE:
@@ -427,8 +530,10 @@ RegCmpCondition MakeRegCmpCondition(Operator op, const cs_insn *instr,
                 return {};
             case X86_OP_REG:
                 res.lhs = operand.reg;
+                break;
             case X86_OP_IMM:
                 res.lhs = operand.imm;
+                break;
             case X86_OP_MEM:
                 res.lhs.type = Operand::Type::Mem;
                 res.lhs.mem_address = disassembler::SolveMemValue(instr, bin);
@@ -467,7 +572,12 @@ RegCmpCondition MakeRegCmpCondition(Operator op, const cs_insn *instr,
             res.lhs = lhs.imm;
             break;
         case X86_OP_MEM: {
-            res.lhs = disassembler::SolveMemValue(instr, bin);
+            u64 mem_val = disassembler::SolveMemValue(instr, bin);
+            if (mem_val) {
+                res.lhs = mem_val;
+            } else {
+                res.lhs = lhs.mem;
+            }
             res.lhs.type = Operand::Type::Mem;
         } break;
         default:
@@ -481,7 +591,12 @@ RegCmpCondition MakeRegCmpCondition(Operator op, const cs_insn *instr,
             res.rhs = rhs.imm;
             break;
         case X86_OP_MEM: {
-            res.rhs = disassembler::SolveMemValue(instr, bin);
+            u64 mem_val = disassembler::SolveMemValue(instr, bin);
+            if (mem_val) {
+                res.rhs = mem_val;
+            } else {
+                res.rhs = rhs.mem;
+            }
             res.rhs.type = Operand::Type::Mem;
         } break;
         default:
@@ -570,7 +685,9 @@ Condition MakeCondition(cs_insn *instr, disassembler::Disassembly *disas,
                          instr->mnemonic, instr->op_str);
             continue;
         }
+        logger::Okay("Constructed reg cmp condition");
         res.reg_cmp = cond;
+        res.type = Condition::Type::RegCmp;
         break;
     }
 
@@ -872,18 +989,16 @@ std::vector<u64> ControlFlowGraph::FindXrefs(std::string label) {
 }
 
 std::vector<CFGNode *> ControlFlowGraph::FindPath(u64 start, u64 target) const {
-    std::vector<CFGNode *> res{};
-
     auto start_node = FindNodeContaining(start);
     if (!start_node) {
         logger::Error("Unable to find starting node");
-        return res;
+        return {};
     }
 
     auto target_node = FindNodeContaining(target);
     if (!target_node) {
         logger::Error("Unable to find target node");
-        return res;
+        return {};
     }
 
     logger::Info("Searching for path 0x%llx -> 0x%llx",
@@ -895,10 +1010,6 @@ std::vector<CFGNode *> ControlFlowGraph::FindPath(u64 start, u64 target) const {
     stack.push_back(start_node);
 
     while (!stack.empty()) {
-        for (const auto &node : stack) {
-            printf("0x%llx -> ", node->block.address);
-        }
-        printf("\n");
         auto node = stack.back();
         if (visited.contains(node)) {
             stack.pop_back();
@@ -907,8 +1018,8 @@ std::vector<CFGNode *> ControlFlowGraph::FindPath(u64 start, u64 target) const {
         logger::Debug("Visiting 0x%llx", node->block.address);
 
         if (node == target_node) {
-            logger::Okay("Success!");
-            break;
+            logger::Okay("Path found. %d nodes to visit", stack.size());
+            return {stack.begin(), stack.end()};
         }
 
         bool fully_explored = true;
@@ -947,6 +1058,7 @@ std::vector<CFGNode *> ControlFlowGraph::FindPath(u64 start, u64 target) const {
         }
     }
 
-    return res;
+    logger::Error("Unable to find path");
+    return {};
 }
 }  // namespace core::static_analysis

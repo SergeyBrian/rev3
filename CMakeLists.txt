@@ -129,6 +129,8 @@ set(core
     src/core/static/calls/calls.cpp
     src/core/dynamic/strings/strings.hpp
     src/core/dynamic/strings/strings.cpp
+    src/core/dynamic/solver/solver.hpp
+    src/core/dynamic/solver/solver.cpp
     src/core/static/patterns/patterns.hpp
     src/core/static/patterns/patterns.cpp
     src/core/static/patterns/signatures.hpp

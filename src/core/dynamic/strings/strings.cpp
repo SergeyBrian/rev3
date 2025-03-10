@@ -47,7 +47,7 @@ void DecryptStrings(Target *target) {
                                 .right_op =
                                     {
                                         .type = X86_OP_IMM,
-                                        .imm = static_cast<int64_t>(u64_max),
+                                        .imm = static_analysis::InvalidImm,
                                     },
                             },
                     },
@@ -73,7 +73,7 @@ void DecryptStrings(Target *target) {
                     },
             }};
 
-        if (static_analysis::MatchPattern(target, func, pattern)) {
+        if (static_analysis::MatchPattern(target, func->address, pattern)) {
             matched_funcs.push_back(func);
             xor_addresses[func] = pattern.at(1).stmt.satisfied_by;
             func->display_name += "_decryption";

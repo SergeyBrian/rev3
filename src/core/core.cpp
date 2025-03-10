@@ -16,6 +16,7 @@
 #include "static/strings/strings.hpp"
 #include "static/patterns/signatures.hpp"
 #include "dynamic/strings/strings.hpp"
+#include "dynamic/solver/solver.hpp"
 
 namespace core {
 static std::vector<Target> targets{};
@@ -418,6 +419,10 @@ outer_break:
             std::cout << target.GetNodeString(xref);
             std::cout << "-----------------\n";
         }
+
+        if (config::Get().dynamic_analysis.target) {
+            Solve(&target, config::Get().dynamic_analysis.target);
+        }
     }
     logger::Okay("All done. Closing");
 }
@@ -498,5 +503,21 @@ void Info(const Target *target) {
 void Solve(const Target *target, u64 address) {
     std::vector<static_analysis::CFGNode *> path =
         target->cfg.FindPath(target->bin_info->EntryPoint(), address);
+    logger::Info("Full trace:");
+    dynamic::solver::CleanUpTrace(target, path);
+    for (auto it = path.begin(); it != path.end(); it++) {
+        const auto node = *it;
+        std::cout << target->GetNodeString(node->block.address);
+        std::cout << "-----------------\n";
+        for (const auto &edge : node->out_edges) {
+            if (edge.type != static_analysis::CFGEdgeType::Jcc) break;
+            if (std::next(it) != path.end() && edge.target != *std::next(it)) {
+                continue;
+            }
+            edge.Log();
+            std::cout << edge.condition.ToString();
+        }
+        std::cout << "-----------------\n";
+    }
 }
 }  // namespace core

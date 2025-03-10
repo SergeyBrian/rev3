@@ -114,6 +114,7 @@ void InitFromArgs(int argc, char **argv) {
         ("print-poi-disas", "Print disassembly of code around points of interest",
          cxxopts::value<bool>()->default_value("true"))
         ("inspect", "Address of interest", cxxopts::value<std::string>()->default_value("0x0"))
+        ("solve", "Find solution leading to given address", cxxopts::value<std::string>()->default_value("0x0"))
         ("u,ui", "Enable GUI", cxxopts::value<bool>()->default_value("false"))
         ("no-exec-code-check", "Disable SEH and .reloc based checking for executable code fragments", cxxopts::value<bool>())
         ("no-disasm-fixes", "Disable anti-disassembly techniques detection", cxxopts::value<bool>())
@@ -158,6 +159,9 @@ void InitFromArgs(int argc, char **argv) {
         auto inspect_address_str = result["inspect"].as<std::string>();
         config.static_analysis.inspect_address =
             std::strtoull(inspect_address_str.c_str(), nullptr, 16);
+        auto solve_address_str = result["solve"].as<std::string>();
+        config.dynamic_analysis.target =
+            std::strtoull(solve_address_str.c_str(), nullptr, 16);
         config.static_analysis.do_executable_check =
             !result.count("no-exec-code-check");
 

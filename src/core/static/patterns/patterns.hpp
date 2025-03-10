@@ -4,6 +4,7 @@
 #include "../../target.hpp"
 
 namespace core::static_analysis {
+const i64 InvalidImm = static_cast<int64_t>(u64_max);
 struct Pattern {
     enum class Type : u8 {
         Equal,
@@ -50,7 +51,7 @@ struct Pattern {
     i64 count;
 };
 
-bool MatchPattern(const Target *target, const Function *function,
+bool MatchPattern(const Target *target, u64 address,
                   std::vector<Pattern> &pattern);
 void ScanFunctionPatterns(Target *target);
 }  // namespace core::static_analysis

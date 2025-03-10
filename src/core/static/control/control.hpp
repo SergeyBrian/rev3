@@ -9,6 +9,7 @@
 
 #include "../../../utils/alias.hpp"
 #include "../../../utils/errors.hpp"
+#include "capstone/x86.h"
 
 namespace core::static_analysis {
 struct BaseBlock {
@@ -85,10 +86,12 @@ struct Operand {
     Register reg{};
     u64 constant{};
     u64 mem_address{};
+    x86_op_mem mem;
 
     Operand() = default;
     Operand(Register reg) : type(Type::Register), reg(reg){};
     Operand(u64 constant) : type(Type::Constant), constant(constant){};
+    Operand(x86_op_mem mem) : type(Type::Mem), mem(mem){};
 };
 
 struct RegCmpCondition {
@@ -111,6 +114,7 @@ struct Condition {
     // Specifies, which flags participate in condition
     Flag flags;
     RegCmpCondition reg_cmp{};
+    [[nodiscard]] std::string ToString() const;
 };
 
 std::string EdgeTypeStr(CFGEdgeType type);

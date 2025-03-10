@@ -21,6 +21,7 @@
 
 namespace core::static_analysis::disassembler {
 static const u64 MaxRegSearchOffset = 10;
+static csh active_handle;
 
 u64 SolveMemAddress(const cs_insn *instr);
 void PrintUnsafe(const cs_insn *instr, u64 count);
@@ -428,6 +429,7 @@ Disassembly::Disassembly() {
     if (cs_open(CS_ARCH_X86, ACTIVE_CS_MODE, &handle) != CS_ERR_OK) {
         throw std::runtime_error("Failed to initialize capstone");
     }
+    active_handle = handle;
 }
 
 void Disassembly::RegAccess(const cs_insn *instr, cs_regs reg_write,
@@ -714,4 +716,6 @@ void Disassembly::PrintCoverage(size_t expected_size) {
     std::cout << carets << "\n";
     std::cout << addresses << "\n";
 }
+
+csh GetHandle() { return active_handle; }
 }  // namespace core::static_analysis::disassembler
