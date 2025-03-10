@@ -519,5 +519,10 @@ void Solve(const Target *target, u64 address) {
         }
         std::cout << "-----------------\n";
     }
+    std::string solution = dynamic::solver::Solve(target, path);
+    if (!solution.empty()) {
+        std::cout << COLOR_GREEN << "FOUND SOLUTION\n"
+                  << solution << COLOR_RESET << "\n";
+    }
 }
 }  // namespace core

@@ -150,11 +150,6 @@ void FindReferences(Target &target) {
                 ReferenceHolder::RegHash(static_cast<x86_reg>(reg_write[i])));
         }
 
-        if (instr->id == X86_INS_CALL) {
-            refs.erase(ReferenceHolder::RegHash(X86_REG_EAX));
-            refs.erase(ReferenceHolder::RegHash(X86_REG_RAX));
-        }
-
         if (instr->id == X86_INS_MOV &&
             (ops[0].reg == X86_REG_EBP || ops[0].reg == X86_REG_RBP)) {
             for (auto it = refs.begin(); it != refs.end();) {
@@ -178,7 +173,7 @@ void FindReferences(Target &target) {
         Reference final_ref{};
 
         if (err != Err::Ok) {
-            logger::Debug("ReferenceHolder ok");
+            logger::Debug("ReferenceHolder not ok");
             persistent_ref = false;
         }
 
@@ -193,32 +188,17 @@ void FindReferences(Target &target) {
             } else if (ops[i].type == X86_OP_IMM) {
                 ref_addr = ops[i].imm;
             }
-            if (!ref_addr) {
-                u64 ref_id = ReferenceHolder::Hash(ops[i]);
-                logger::Debug("Check 0x%llx (0x%llx)", ref_id, ops[i].mem.disp);
-                if (ref_id && refs.contains(ref_id)) {
-                    auto ref = refs.at(ref_id);
-                    logger::Debug("Reference to existing holder found");
-                    final_ref = {
-                        .type = ref.ref.type,
-                        .address = ref.ref.address,
-                        .direct = false,
-                    };
-                    target.references[addr].push_back(final_ref);
-                } else {
-                    if (instr->id == X86_INS_PUSH &&
-                        ops[0].type == X86_OP_IMM) {
-                        target.references[addr].push_back({
-                            .type = Reference::Type::Immediate,
-                            .value = ops[0].imm,
-                            .direct = true,
-                        });
-                    }
-                }
-                continue;
-            }
 
-            if (target.strings_map.contains(ref_addr)) {
+            u64 ref_id = ReferenceHolder::Hash(ops[i]);
+            logger::Debug("Check 0x%llx (0x%llx)", ref_id, ops[i].mem.disp);
+            if (ref_id && refs.contains(ref_id)) {
+                auto ref = refs.at(ref_id);
+                logger::Debug("Reference to existing holder found");
+                final_ref = ref.ref;
+                final_ref.direct = false;
+                target.references[addr].push_back(final_ref);
+                continue;
+            } else if (target.strings_map.contains(ref_addr)) {
                 logger::Debug("String found!");
                 final_ref = {
                     .type = Reference::Type::String,
@@ -226,7 +206,29 @@ void FindReferences(Target &target) {
                     .direct = true,
                 };
                 target.references[addr].push_back(final_ref);
+            } else if (instr->id == X86_INS_PUSH && ops[0].type == X86_OP_IMM &&
+                       !target.strings_map.contains(ref_addr) &&
+                       !target.functions.contains(ref_addr) &&
+                       !target.strings_map.contains(
+                           ref_addr - target.bin_info->ImageBase()) &&
+                       !target.functions.contains(
+                           ref_addr - target.bin_info->ImageBase())) {
+                target.references[addr].push_back({
+                    .type = Reference::Type::Immediate,
+                    .value = ops[0].imm,
+                    .direct = true,
+                });
+            } else if (instr->id == X86_INS_LEA && ops[1].type == X86_OP_MEM) {
+                final_ref = {
+                    .type = Reference::Type::Memory,
+                    .mem = ops[1].mem,
+                    .address = 0,
+                    .direct = true,
+                };
+                target.references[addr].push_back(final_ref);
+                continue;
             }
+
             if (call_processed) {
                 continue;
             }
@@ -265,6 +267,11 @@ void FindReferences(Target &target) {
             } else {
                 refs.erase(cur_ref.Hash());
             }
+        }
+
+        if (instr->id == X86_INS_CALL) {
+            refs.erase(ReferenceHolder::RegHash(X86_REG_EAX));
+            refs.erase(ReferenceHolder::RegHash(X86_REG_RAX));
         }
     }
 }

@@ -157,15 +157,7 @@ static std::string OperandToString(const Operand &op) {
             if (op.mem_address) {
                 ss << "[0x" << std::hex << op.mem_address << "]";
             } else {
-                i64 disp = static_cast<i64>(op.mem.disp);
-                bool negative = false;
-                if (disp < 0) {
-                    disp *= -1;
-                    negative = true;
-                }
-                ss << "[" << cs_reg_name(disassembler::GetHandle(), op.mem.base)
-                   << (negative ? " -" : " +") << " 0x" << std::hex << disp
-                   << "]";
+                ss << disassembler::MemoryToString(op.mem);
             }
             return ss.str();
         }

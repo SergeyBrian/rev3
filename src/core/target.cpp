@@ -5,6 +5,7 @@
 
 #include "../utils/logger.hpp"
 #include "../utils/utils.hpp"
+#include "static/disas/disassembler.hpp"
 
 namespace core {
 Target::Target(const std::string &filename) : filename(filename) {
@@ -89,6 +90,16 @@ std::string Target::GetString(u64 addr, usize size) const {
         if (references.contains(address)) {
             for (const auto &ref : references.at(address)) {
                 switch (ref.type) {
+                    case Reference::Type::Memory:
+                        ss << COLOR_YELLOW << "\t&";
+                        if (ref.address) {
+                            ss << "0x" << std::hex << ref.address;
+                        } else {
+                            ss << static_analysis::disassembler::MemoryToString(
+                                ref.mem);
+                        }
+                        ss << COLOR_RESET;
+                        break;
                     case Reference::Type::Immediate:
                         ss << COLOR_BLUE << "\t0x" << ref.value << COLOR_RESET;
                         break;
@@ -106,6 +117,17 @@ std::string Target::GetString(u64 addr, usize size) const {
                                  func->xrefs.at(address).args) {
                                 ss << " ";
                                 switch (arg.type) {
+                                    case Reference::Type::Memory:
+                                        ss << "&";
+                                        if (arg.address) {
+                                            ss << "0x" << std::hex
+                                               << arg.address;
+                                        } else {
+                                            ss << static_analysis::
+                                                    disassembler::
+                                                        MemoryToString(arg.mem);
+                                        }
+                                        break;
                                     case Reference::Type::Immediate:
                                         ss << "0x" << arg.value;
                                         break;

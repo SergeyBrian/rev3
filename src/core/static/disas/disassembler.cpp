@@ -718,4 +718,21 @@ void Disassembly::PrintCoverage(size_t expected_size) {
 }
 
 csh GetHandle() { return active_handle; }
+
+std::string MemoryToString(x86_op_mem mem) {
+    std::ostringstream ss;
+    if (mem.base == X86_REG_INVALID) {
+        ss << "[???]";
+    } else {
+        i64 disp = static_cast<i64>(mem.disp);
+        bool negative = false;
+        if (disp < 0) {
+            disp *= -1;
+            negative = true;
+        }
+        ss << "[" << cs_reg_name(active_handle, mem.base)
+           << (negative ? " -" : " +") << " 0x" << std::hex << disp << "]";
+    }
+    return ss.str();
+}
 }  // namespace core::static_analysis::disassembler

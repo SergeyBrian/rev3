@@ -62,6 +62,7 @@ u64 SolveMemValue(const cs_insn *instr, BinInfo *bin);
 void ResetCache();
 bool CreatesBranch(x86_insn instr);
 csh GetHandle();
+[[nodiscard]] std::string MemoryToString(x86_op_mem mem);
 }  // namespace core::static_analysis::disassembler
 
 #endif

@@ -36,11 +36,13 @@ struct Reference {
         Function,
         String,
         Immediate,
+        Memory,
     } type{};
 
     u64 address{};
     i64 value{};
     bool direct{};
+    x86_op_mem mem{};
 };
 
 struct Xref {
