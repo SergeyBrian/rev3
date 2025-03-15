@@ -98,7 +98,6 @@ static const std::vector<std::pair<std::string, std::vector<Pattern>>>
                         },
                 },
             },
-
         },
         {
             "_security_init_cookie",
@@ -220,7 +219,169 @@ static const std::vector<std::pair<std::string, std::vector<Pattern>>>
                 },
             },
         },
+        {
+            "_scrt_is_managed_app",
+            {
+                {
+
+                    .stmt =
+                        {
+                            .type = Pattern::Stmt::Type::Insn,
+                            .insn =
+                                {
+                                    .id = X86_INS_PUSH,
+                                    .left_op =
+                                        {
+                                            .type = X86_OP_IMM,
+                                            .imm = 0x0,
+                                        },
+                                },
+                        },
+                },
+                {
+                    .stmt =
+                        {
+                            .type = Pattern::Stmt::Type::Call,
+                            .call_func = "GetModuleHandleW",
+                        },
+                },
+                {
+                    .stmt =
+                        {
+                            .type = Pattern::Stmt::Type::Any,
+                        },
+                    .count = -1,
+                },
+                {
+                    .stmt =
+                        {
+                            .type = Pattern::Stmt::Type::Insn,
+                            .insn =
+                                {
+                                    .id = X86_INS_MOV,
+                                    .right_op =
+                                        {
+                                            .type = X86_OP_IMM,
+                                            .imm = 0x5A4D,
+                                        },
+                                },
+                        },
+                },
+            },
+        },
+        {
+            "_scrt_is_managed_app",
+            {
+                {
+
+                    .stmt =
+                        {
+                            .type = Pattern::Stmt::Type::Insn,
+                            .insn =
+                                {
+                                    .id = X86_INS_PUSH,
+                                    .left_op =
+                                        {
+                                            .type = X86_OP_IMM,
+                                            .imm = 0x0,
+                                        },
+                                },
+                        },
+                },
+                {
+                    .stmt =
+                        {
+                            .type = Pattern::Stmt::Type::Call,
+                            .call_func = "GetModuleHandleW",
+                        },
+                },
+                {
+                    .stmt =
+                        {
+                            .type = Pattern::Stmt::Type::Insn,
+                            .insn =
+                                {
+                                    .id = X86_INS_MOV,
+                                },
+                        },
+                },
+                {
+                    .stmt =
+                        {
+                            .type = Pattern::Stmt::Type::Any,
+                        },
+                    .count = -1,
+                },
+                {
+                    .stmt =
+                        {
+                            .type = Pattern::Stmt::Type::Insn,
+                            .insn =
+                                {
+                                    .id = X86_INS_MOV,
+                                    .right_op =
+                                        {
+                                            .type = X86_OP_IMM,
+                                            .imm = 0x5A4D,
+                                        },
+                                },
+                        },
+                },
+            },
+        },
     };
+
+static const std::vector<Pattern> main_sig{
+    {
+        {
+            .stmt = {.type = Pattern::Stmt::Type::Any},
+            .count = -1,
+        },
+        {
+            .stmt = {.type = Pattern::Stmt::Type::Insn,
+                     .insn =
+                         {
+                             .id = X86_INS_PUSH,
+                             .left_op =
+                                 {
+                                     .type = X86_OP_REG,
+                                     .reg = X86_REG_EAX,
+                                 },
+                         }},
+        },
+        {
+            .stmt = {.type = Pattern::Stmt::Type::Insn,
+                     .insn =
+                         {
+                             .id = X86_INS_PUSH,
+                             .left_op =
+                                 {
+                                     .type = X86_OP_MEM,
+                                     .mem = {.base = X86_REG_EDI},
+                                 },
+                         }},
+        },
+        {
+            .stmt = {.type = Pattern::Stmt::Type::Insn,
+                     .insn =
+                         {
+                             .id = X86_INS_PUSH,
+                             .left_op =
+                                 {
+                                     .type = X86_OP_MEM,
+                                     .mem = {.base = X86_REG_ESI},
+                                 },
+                         }},
+        },
+        {
+            .stmt = {.type = Pattern::Stmt::Type::Insn,
+                     .insn =
+                         {
+                             .id = X86_INS_CALL,
+                         }},
+        },
+    },
+};
 
 void ScanForKnownFunctionSignatures(Target *target) {
     for (const auto &[name, pattern] : signatures) {

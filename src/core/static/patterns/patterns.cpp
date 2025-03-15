@@ -154,7 +154,7 @@ bool MatchPattern(const Target *target, u64 address,
         }
         logger::Debug("Pattern statement %d satisfied", pattern_step - 1);
         if (pattern_step >= pattern.size()) break;
-        if (instr->id == X86_INS_RET) break;
+        if (instr->address - address > 256) break;
     }
 
     bool res = pattern_step >= pattern.size();

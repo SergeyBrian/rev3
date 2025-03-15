@@ -104,6 +104,8 @@ void Conflict::GuessResolution(BinInfo *bin) {
 
 bool IsSuspicious(cs_insn *instr, BinInfo *bin) {
     switch (static_cast<x86_insn>(instr->id)) {
+        // .byte
+        case X86_INS_INVALID:
         // Legacy BCD
         case X86_INS_SBB:
         case X86_INS_AAA:
@@ -162,8 +164,13 @@ bool IsSuspicious(cs_insn *instr, BinInfo *bin) {
             logger::Warn("0x%llx is invalid ptr", addr);
             return true;
         }
+    } else {
+        for (u16 i = 0; i < instr->detail->x86.op_count; i++) {
+            if (instr->id == X86_INS_PUSH) break;
+            if (instr->detail->x86.operands[i].type != X86_OP_IMM) continue;
+            if (instr->detail->x86.operands[i].imm >= 0xa0000000) return true;
+        }
     }
-    if (!strcmp(instr->mnemonic, ".byte")) return true;
 
     return false;
 }

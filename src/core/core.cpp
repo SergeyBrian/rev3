@@ -254,6 +254,12 @@ void FindInternalFunctions(Target &target) {
             target.functions.at(call_addr)->xrefs[ref_addr] = {
                 .address = ref_addr,
             };
+        } else if (target.disassembly.instr_map.contains(call_addr)) {
+            auto func = new Function();
+            func->address = call_addr;
+            func->display_name =
+                (std::ostringstream() << "?f_" << std::hex << call_addr).str();
+            target.functions[call_addr] = func;
         }
     }
 }
@@ -360,6 +366,7 @@ void Run() {
 
         FindInternalFunctions(target);
         static_analysis::ScanForKnownFunctionSignatures(&target);
+        RefreshFunctionsTags(&target);
 
         static_analysis::FindStrings(target);
         static_analysis::FindReferences(target);
@@ -523,6 +530,18 @@ void Solve(const Target *target, u64 address) {
     if (!solution.empty()) {
         std::cout << COLOR_GREEN << "FOUND SOLUTION\n"
                   << solution << COLOR_RESET << "\n";
+    }
+}
+
+void RefreshFunctionsTags(Target *target) {
+    auto interesting_functions =
+        config::Get().static_analysis.interesting_functions;
+    for (auto [_, func] : target->functions) {
+        for (const auto &interest : interesting_functions) {
+            if (interest.name == func->display_name) {
+                func->tags |= interest.tags;
+            }
+        }
     }
 }
 }  // namespace core

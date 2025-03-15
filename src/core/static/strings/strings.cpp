@@ -91,11 +91,6 @@ void FindStackStrings(Target &target) {
                 str.content = std::string(content.begin(), content.end());
                 target.strings.push_back(str);
                 target.strings_map[str.address] = str.content;
-                /*target.references[str.address] = {{*/
-                /*    .type = Reference::Type::String,*/
-                /*    .address = str.address,*/
-                /*    .direct = true,*/
-                /*}};*/
                 content.erase(content.begin());
             }
         }

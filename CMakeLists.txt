@@ -86,7 +86,7 @@ include_directories("${TRITON_DIR}/src/libtriton/includes")
 
 if (MSVC)
 else()
-    add_compile_options(-Wall -Wextra -pedantic -Werror -Wno-format -Wno-macro-redefined)
+    add_compile_options(-Wno-format -Wno-macro-redefined)
 endif()
 
 

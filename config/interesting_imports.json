@@ -1033,6 +1033,18 @@
       "lib_name": "kernel32.dll",
       "tags": ["masking"],
       "category": "antianalysis"
+    },
+    {
+      "name": "printf",
+      "lib_name": "vcrt",
+      "tags": ["sink"],
+      "category": "ui"
+    },
+    {
+      "name": "scanf",
+      "lib_name": "vcrt",
+      "tags": ["source"],
+      "category": "ui"
     }
   ]
 }

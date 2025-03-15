@@ -1,10 +1,10 @@
 #ifndef UTILS_UTILS_HPP
 #define UTILS_UTILS_HPP
 
-#include "alias.hpp"
-#define UNREACHABLE assert(false && "This branch should never execute");
-
 #include <string>
+
+#include "alias.hpp"
+#define UNREACHABLE throw std::runtime_error("This branch should not execute");
 
 namespace utils {
 template <class C, typename T>

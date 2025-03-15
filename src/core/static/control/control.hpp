@@ -149,6 +149,8 @@ struct EdgeTemplate {
     CFGEdgeType type;
 };
 
+CFGEdgeType GetEdgeType(u16 opcode);
+
 struct ControlFlowGraph {
     std::map<u64, std::unique_ptr<CFGNode>> nodes;
 
