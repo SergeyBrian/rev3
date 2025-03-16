@@ -132,7 +132,7 @@ bool IsAddressReachable(u64 from, u64 to,
         instruction.setSize(instr->size);
         instruction.setOpcode(instr->bytes, instr->size);
         ctx->processing(instruction);
-        /*PrintDebugInfo(instruction, ctx.get());*/
+        PrintDebugInfo(instruction, ctx.get());
         ip = static_cast<u64>(
             ctx->getSymbolicRegisterValue(ctx->registers.x86_eip));
     }
@@ -426,7 +426,7 @@ std::unique_ptr<triton::Context> ExploreAlternativeBranch(
 
     u64 patched_addr{};
 
-    triton::ast::SharedAbstractNode new_constraint;
+    triton::ast::SharedAbstractNode new_constraint = nullptr;
     for (const auto &[is_taken, src, dest, constr] :
          new_ctx->getPathConstraints().back().getBranchConstraints()) {
         logger::Debug("Visiting constraint 0x%llx", src);
@@ -443,8 +443,10 @@ std::unique_ptr<triton::Context> ExploreAlternativeBranch(
         break;
     }
 
-    new_ctx->popPathConstraint();
-    new_ctx->pushPathConstraint(new_constraint);
+    if (new_constraint) {
+        new_ctx->popPathConstraint();
+        new_ctx->pushPathConstraint(new_constraint);
+    }
 
     auto data = new_ctx->getSymbolicMemoryAreaValue(0x700000, 40);
     logger::log << COLOR_GREEN
@@ -464,6 +466,12 @@ std::unique_ptr<triton::Context> ExploreAlternativeBranch(
 
     return new_ctx;
 }
+
+struct ContextHolder {
+    std::unique_ptr<triton::Context> ctx;
+    u64 ip;
+    u64 step_count;
+};
 
 std::string Solve(const Target *target,
                   const std::vector<static_analysis::CFGNode *> &path) {
@@ -489,8 +497,12 @@ std::string Solve(const Target *target,
     }
 
     auto base_ctx = MakeDefaultContext();
-    std::deque<std::pair<u64, std::unique_ptr<triton::Context>>> ctx_queue;
-    ctx_queue.push_front({first_ip, std::move(base_ctx)});
+    std::deque<ContextHolder> ctx_queue;
+    ctx_queue.push_front({
+        .ctx = std::move(base_ctx),
+        .ip = first_ip,
+        .step_count = 0,
+    });
     triton::Context *final_ctx = nullptr;
 
     logger::Info("Destination address: 0x%llx", dest);
@@ -502,22 +514,20 @@ std::string Solve(const Target *target,
             break;
         }
 
-        u64 local_step_count = 0;
         u64 iter_step_count = 0;
-        auto &[ip, ctx_ptr] = ctx_queue.back();
+        auto &it = ctx_queue.back();
+        u64 local_step_count = it.step_count;
+        auto ip = it.ip;
+        auto ctx_ptr = std::move(it.ctx);
+        ctx_queue.pop_back();
         // ip = first_ip;
         auto ctx = ctx_ptr.get();
         u64 prev_ip = ip;
         bool solution_found = false;
         u64 ctx_id = ctx_queue.size();
 
-        auto cur_input = used_inputs.front();
-        ctx->setConcreteMemoryAreaValue(0x700000, cur_input);
-        used_inputs.erase(used_inputs.begin());
-
         logger::Okay("Enter context #%u at 0x%llx", ctx_id, ip);
         auto data = ctx->getSymbolicMemoryAreaValue(0x700000, 40);
-        ctx->symbolizeMemory(0x700000, 40);
         std::cout << "Trying " << COLOR_GREEN
                   << utils::UnescapeString({data.begin(), data.end()})
                   << COLOR_RESET << "\n";
@@ -532,7 +542,6 @@ std::string Solve(const Target *target,
 
         if (!target->disassembly.instr_map.contains(ip)) {
             logger::Error("There is no instruction at 0x%llx", ip);
-            ctx_queue.pop_back();
             continue;
         }
         do {
@@ -552,7 +561,6 @@ std::string Solve(const Target *target,
                 logger::Error(
                     "Tried to go to invalid address 0x%llx (from 0x%llx)",
                     next_ip, ip);
-                ctx_queue.pop_back();
                 break;
             }
 
@@ -560,12 +568,11 @@ std::string Solve(const Target *target,
                 if (ctx->getSymbolicRegisterValue(ctx->registers.x86_eax)) {
                     logger::Okay("Reached target! Enter");
                     std::cout << "Success!\n"
-                              << utils::UnescapeString(std::string{
-                                     cur_input.begin(), cur_input.end()});
+                              << utils::UnescapeString(
+                                     std::string{data.begin(), data.end()});
                     solution_found = true;
                 } else {
                     logger::Error("Reached target with wrong result");
-                    ctx_queue.pop_back();
                 }
                 break;
             }
@@ -579,18 +586,32 @@ std::string Solve(const Target *target,
 
             u64 addr1 = instruction.getNextAddress();
             u64 addr2 = instruction.operands[0].getImmediate().getValue();
-            auto cond_ctx =
-                ExploreAlternativeBranch(instruction, ctx, local_step_count);
-            if (cond_ctx) {
-                logger::Debug("Push alternative ctx");
-                ctx_queue.push_front({addr2, std::move(cond_ctx)});
-            }
+
             logger::Debug(
                 "Symbolic branch: 0x%llx or 0x%llx. Will go to 0x%llx", addr1,
                 addr2, (instruction.isConditionTaken() ? addr2 : addr1));
+
+            auto cond_ctx =
+                ExploreAlternativeBranch(instruction, ctx, local_step_count);
+
+            if (cond_ctx) {
+                logger::Debug("Push alternative ctx and switch to it");
+                // Push current context because we want to return to it later
+                ctx_queue.push_back({
+                    .ctx = std::move(ctx_ptr),
+                    .ip = (instruction.isConditionTaken() ? addr2 : addr1),
+                    .step_count = local_step_count,
+                });
+                // Invert address for new context because we want to explore
+                // alternative branch
+                ctx_queue.push_back({
+                    .ctx = std::move(cond_ctx),
+                    (instruction.isConditionTaken() ? addr1 : addr2),
+                    .step_count = local_step_count,
+                });
+                break;
+            }
         } while (true);
-        logger::Debug("Solution not found yet");
-        ctx_queue.pop_back();
 
         if (solution_found) {
             final_ctx = ctx;
