@@ -993,8 +993,8 @@ std::vector<CFGNode *> ControlFlowGraph::FindPath(u64 start, u64 target) const {
         return {};
     }
 
-    logger::Info("Searching for path 0x%llx -> 0x%llx",
-                 start_node->block.address, target_node->block.address);
+    logger::Debug("Searching for path 0x%llx -> 0x%llx",
+                  start_node->block.address, target_node->block.address);
 
     std::deque<CFGNode *> stack{};
     std::set<CFGNode *> visited{};
@@ -1050,7 +1050,6 @@ std::vector<CFGNode *> ControlFlowGraph::FindPath(u64 start, u64 target) const {
         }
     }
 
-    logger::Error("Unable to find path");
     return {};
 }
 }  // namespace core::static_analysis

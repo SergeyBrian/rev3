@@ -353,8 +353,8 @@ bool SolveFormula(triton::Context *ctx, u64 ip,
             auto model = ctx->getModel(final_expr);
             logger::Debug("Done.");
             if (model.empty()) {
-                logger::Warn("No solution found! Will never go to 0x%llx",
-                             dest);
+                logger::Debug("No solution found! Will never go to 0x%llx",
+                              dest);
                 return false;
             }
             for (const auto &[_, m] : model) {
@@ -528,17 +528,9 @@ std::string Solve(const Target *target,
 
         logger::Okay("Enter context #%u at 0x%llx", ctx_id, ip);
         auto data = ctx->getSymbolicMemoryAreaValue(0x700000, 40);
-        std::cout << "Trying " << COLOR_GREEN
-                  << utils::UnescapeString({data.begin(), data.end()})
-                  << COLOR_RESET << "\n";
-
-        /*if (!IsAddressReachable(ip, dest, &target->cfg)) {*/
-        /*    logger::Debug("Destination 0x%llx is unreachable from 0x%llx",
-         * dest,*/
-        /*                  ip);*/
-        /*    ctx_stack.pop_back();*/
-        /*    continue;*/
-        /*}*/
+        logger::log << "Trying " << COLOR_GREEN
+                    << utils::UnescapeString({data.begin(), data.end()})
+                    << COLOR_RESET << "\n";
 
         if (!target->disassembly.instr_map.contains(ip)) {
             logger::Error("There is no instruction at 0x%llx", ip);
@@ -567,12 +559,11 @@ std::string Solve(const Target *target,
             if (ip == 0x15D9) {
                 if (ctx->getSymbolicRegisterValue(ctx->registers.x86_eax)) {
                     logger::Okay("Reached target! Enter");
-                    std::cout << "Success!\n"
-                              << utils::UnescapeString(
-                                     std::string{data.begin(), data.end()});
                     solution_found = true;
+                    return utils::UnescapeString(
+                        std::string{data.begin(), data.end()});
                 } else {
-                    logger::Error("Reached target with wrong result");
+                    logger::Debug("Reached target with wrong result");
                 }
                 break;
             }
