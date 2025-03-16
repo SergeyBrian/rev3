@@ -18,6 +18,8 @@ namespace core::dynamic::solver {
 static const std::map<std::string, bool> ImportantFunctions{
     {"_security_init_cookie", false},
 };
+static const u64 first_ip = 0x1450;
+static const Target *g_target = nullptr;
 
 void CleanUpTrace(const Target *target,
                   std::vector<static_analysis::CFGNode *> &path) {
@@ -35,49 +37,33 @@ void CleanUpTrace(const Target *target,
     }
 }
 
+void PrintDebugInfo(triton::arch::Instruction &instr, triton::Context *ctx) {
+    logger::Debug("===================");
+    if (instr.isSymbolized()) logger::log << "syminstr: ";
+    logger::log << COLOR_BLUE << instr << COLOR_RESET << "\n";
+    auto regs = instr.getReadRegisters();
+    if (!instr.isSymbolized()) return;
+
+    for (const auto &[reg, expr] : regs) {
+        if (!ctx->isRegisterSymbolized(reg)) continue;
+
+        logger::Debug("%s", reg.getName().c_str());
+    }
+
+    for (const auto &[mem, expr] : instr.getLoadAccess()) {
+        if (!ctx->isMemorySymbolized(mem)) continue;
+
+        logger::Debug("0x%llx", mem.getAddress());
+    }
+
+    for (const auto &expr : instr.symbolicExpressions) {
+        logger::log << expr << "\n";
+    }
+}
+
 bool IsAddressReachable(u64 from, u64 to,
                         const static_analysis::ControlFlowGraph *g) {
     return !g->FindPath(from, to).empty();
-}
-
-void SnapshotContext(triton::Context *dst, triton::Context *src) {
-    /* Synch concrete state */
-    switch (src->getArchitecture()) {
-        case triton::arch::ARCH_X86_64:
-            *static_cast<triton::arch::x86::x8664Cpu *>(dst->getCpuInstance()) =
-                *static_cast<triton::arch::x86::x8664Cpu *>(
-                    src->getCpuInstance());
-            break;
-        case triton::arch::ARCH_X86:
-            *static_cast<triton::arch::x86::x86Cpu *>(dst->getCpuInstance()) =
-                *static_cast<triton::arch::x86::x86Cpu *>(
-                    src->getCpuInstance());
-            break;
-        default:
-            throw triton::exceptions::Engines(
-                "SnapshotContext(): Invalid architecture");
-    }
-
-    /* Synch symbolic register */
-    dst->concretizeAllRegister();
-    for (const auto &item : src->getSymbolicRegisters()) {
-        dst->assignSymbolicExpressionToRegister(item.second,
-                                                dst->getRegister(item.first));
-    }
-
-    /* Synch symbolic memory */
-    dst->concretizeAllMemory();
-    for (const auto &item : src->getSymbolicMemory()) {
-        dst->assignSymbolicExpressionToMemory(
-            item.second,
-            triton::arch::MemoryAccess(item.first, triton::size::byte));
-    }
-
-    /* Synch path predicate */
-    dst->clearPathConstraints();
-    for (const auto &pc : src->getPathConstraints()) {
-        dst->pushPathConstraint(pc);
-    }
 }
 
 [[nodiscard]] std::unique_ptr<triton::Context> MakeDefaultContext() {
@@ -126,6 +112,34 @@ void SnapshotContext(triton::Context *dst, triton::Context *src) {
     return ctx;
 }
 
+[[nodiscard]] std::unique_ptr<triton::Context> SnapshotContext(
+    triton::Context *src, u64 step_count) {
+    logger::Debug("snapwhosdfsdf %u", step_count);
+    auto ctx = MakeDefaultContext();
+    ctx->setConcreteMemoryAreaValue(
+        0x700000, src->getSymbolicMemoryAreaValue(0x700000, 40));
+    ctx->symbolizeMemory(0x700000, 40);
+    auto data = src->getSymbolicMemoryAreaValue(0x700000, 40);
+    logger::log << utils::UnescapeString({data.begin(), data.end()}) << "\n";
+
+    u64 ip = first_ip;
+
+    while (step_count--) {
+        if (!g_target->disassembly.instr_map.contains(ip)) return nullptr;
+        triton::arch::Instruction instruction{};
+        auto instr = g_target->disassembly.instr_map.at(ip);
+        instruction.setAddress(instr->address);
+        instruction.setSize(instr->size);
+        instruction.setOpcode(instr->bytes, instr->size);
+        ctx->processing(instruction);
+        /*PrintDebugInfo(instruction, ctx.get());*/
+        ip = static_cast<u64>(
+            ctx->getSymbolicRegisterValue(ctx->registers.x86_eip));
+    }
+
+    return std::move(ctx);
+}
+
 u64 GetLastInstrAddress(const static_analysis::CFGNode *node,
                         const Target *target) {
     auto it = target->disassembly.instr_map.lower_bound(node->block.address);
@@ -135,30 +149,6 @@ u64 GetLastInstrAddress(const static_analysis::CFGNode *node,
     }
 
     return it->first;
-}
-
-void PrintDebugInfo(triton::arch::Instruction &instr, triton::Context *ctx) {
-    logger::Debug("===================");
-    if (instr.isSymbolized()) logger::log << "syminstr: ";
-    logger::log << COLOR_BLUE << instr << COLOR_RESET << "\n";
-    auto regs = instr.getReadRegisters();
-    if (!instr.isSymbolized()) return;
-
-    for (const auto &[reg, expr] : regs) {
-        if (!ctx->isRegisterSymbolized(reg)) continue;
-
-        logger::Debug("%s", reg.getName().c_str());
-    }
-
-    for (const auto &[mem, expr] : instr.getLoadAccess()) {
-        if (!ctx->isMemorySymbolized(mem)) continue;
-
-        logger::Debug("0x%llx", mem.getAddress());
-    }
-
-    for (const auto &expr : instr.symbolicExpressions) {
-        logger::log << expr << "\n";
-    }
 }
 
 void GetRegisterValue(triton::Context *ctx, triton::arch::Register &reg,
@@ -342,7 +332,8 @@ void NegateInstructionFlags(triton::Context *ctx,
     }
 }
 
-void SolveFormula(triton::Context *old_ctx, triton::Context *ctx, u64 ip) {
+bool SolveFormula(triton::Context *ctx, u64 ip,
+                  const triton::arch::Instruction *instr) {
     auto pc = ctx->getPathConstraints().back();
     assert(std::get<1>(pc.getBranchConstraints()[0]) == ip &&
            "Programming error. Path constraint does not match the instruction");
@@ -364,12 +355,12 @@ void SolveFormula(triton::Context *old_ctx, triton::Context *ctx, u64 ip) {
             if (model.empty()) {
                 logger::Warn("No solution found! Will never go to 0x%llx",
                              dest);
-                return;
+                return false;
             }
             for (const auto &[_, m] : model) {
                 auto val = m.getValue();
-                auto var =
-                    old_ctx->getSymbolicVariable(m.getVariable()->getId());
+                auto var = ctx->getSymbolicVariable(m.getVariable()->getId());
+                m.getVariable()->setComment(instr->getDisassembly());
 
                 logger::log << "Set " << var << " = " << val << "\n";
                 switch (var->getType()) {
@@ -396,6 +387,8 @@ void SolveFormula(triton::Context *old_ctx, triton::Context *ctx, u64 ip) {
             }
         }
     }
+
+    return true;
 }
 
 static std::vector<std::vector<u8>> used_inputs{{
@@ -404,11 +397,16 @@ static std::vector<std::vector<u8>> used_inputs{{
     'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 0,
 }};
 std::unique_ptr<triton::Context> ExploreAlternativeBranch(
-    triton::arch::Instruction &instr, triton::Context *ctx) {
+    triton::arch::Instruction &instr, triton::Context *ctx, u64 step_count) {
     assert(instr.isBranch());
     assert(instr.isSymbolized());
 
-    auto constraints = ctx->getPathConstraints();
+    bool taken = instr.isConditionTaken();
+
+    auto new_ctx = SnapshotContext(ctx, step_count);
+    if (!new_ctx) return nullptr;
+
+    auto constraints = new_ctx->getPathConstraints();
     if (constraints.empty()) {
         logger::Warn("No constraints in context. This should never happen");
         return nullptr;
@@ -420,21 +418,17 @@ std::unique_ptr<triton::Context> ExploreAlternativeBranch(
         return nullptr;
     }
 
-    bool taken = instr.isConditionTaken();
-
-    auto tmp_ctx = std::make_unique<triton::Context>(ctx->getArchitecture());
-    SnapshotContext(tmp_ctx.get(), ctx);
-
     logger::Debug("Solving alternative model");
-    SolveFormula(ctx, tmp_ctx.get(), instr.getAddress());
+    if (!SolveFormula(new_ctx.get(), instr.getAddress(), &instr))
+        return nullptr;
 
-    NegateInstructionFlags(tmp_ctx.get(), &instr);
+    NegateInstructionFlags(new_ctx.get(), &instr);
 
     u64 patched_addr{};
 
     triton::ast::SharedAbstractNode new_constraint;
     for (const auto &[is_taken, src, dest, constr] :
-         tmp_ctx->getPathConstraints().back().getBranchConstraints()) {
+         new_ctx->getPathConstraints().back().getBranchConstraints()) {
         logger::Debug("Visiting constraint 0x%llx", src);
         if (is_taken == taken) {
             logger::Debug("Skip %s (is visited by parent ctx)",
@@ -449,12 +443,10 @@ std::unique_ptr<triton::Context> ExploreAlternativeBranch(
         break;
     }
 
-    tmp_ctx->popPathConstraint();
-    tmp_ctx->pushPathConstraint(new_constraint);
+    new_ctx->popPathConstraint();
+    new_ctx->pushPathConstraint(new_constraint);
 
-    ctx->clearPathConstraints();
-
-    auto data = tmp_ctx->getSymbolicMemoryAreaValue(0x700000, 40);
+    auto data = new_ctx->getSymbolicMemoryAreaValue(0x700000, 40);
     logger::log << COLOR_GREEN
                 << utils::UnescapeString({data.begin(), data.end()})
                 << COLOR_RESET << "\n";
@@ -463,23 +455,21 @@ std::unique_ptr<triton::Context> ExploreAlternativeBranch(
                 << utils::UnescapeString({data.begin(), data.end()})
                 << COLOR_RESET << "\n";
     if (utils::contains(used_inputs,
-                        tmp_ctx->getSymbolicMemoryAreaValue(0x700000, 40))) {
+                        new_ctx->getSymbolicMemoryAreaValue(0x700000, 40))) {
         logger::Debug("Equivalent input was already explored");
-        return nullptr;
     } else {
         logger::Debug("Patch applied 0x%llx", patched_addr);
     }
-    used_inputs.push_back(tmp_ctx->getSymbolicMemoryAreaValue(0x700000, 40));
+    used_inputs.push_back(new_ctx->getSymbolicMemoryAreaValue(0x700000, 40));
 
-    return tmp_ctx;
+    return new_ctx;
 }
 
 std::string Solve(const Target *target,
                   const std::vector<static_analysis::CFGNode *> &path) {
     u64 dest = path.at(path.size() - 1)->block.address;
     std::vector<u64> important;
-    /*std::vector<std::vector<static_analysis::CFGNode *>> alternative_paths{*/
-    /*    path};*/
+    g_target = target;
     for (const auto node : path) {
         for (const auto &edge : node->out_edges) {
             if (node->out_edges.front().type !=
@@ -498,8 +488,6 @@ std::string Solve(const Target *target,
         logger::Debug("Node 0x%llx is IMPORTANT", addr);
     }
 
-    u64 first_ip = 0x1450;
-
     auto base_ctx = MakeDefaultContext();
     std::deque<std::pair<u64, std::unique_ptr<triton::Context>>> ctx_queue;
     ctx_queue.push_front({first_ip, std::move(base_ctx)});
@@ -514,9 +502,10 @@ std::string Solve(const Target *target,
             break;
         }
 
-        // auto &[ip, ctx_ptr] = ctx_queue.back();
-        auto ctx_ptr = MakeDefaultContext();
-        u64 ip = first_ip;
+        u64 local_step_count = 0;
+        u64 iter_step_count = 0;
+        auto &[ip, ctx_ptr] = ctx_queue.back();
+        // ip = first_ip;
         auto ctx = ctx_ptr.get();
         u64 prev_ip = ip;
         bool solution_found = false;
@@ -549,6 +538,7 @@ std::string Solve(const Target *target,
         do {
             triton::arch::Instruction instruction{};
             step_count++;
+            local_step_count++;
             logger::Debug("Step %u Ctx %u", step_count, ctx_id);
             auto instr = target->disassembly.instr_map.at(ip);
             instruction.setAddress(instr->address);
@@ -589,16 +579,18 @@ std::string Solve(const Target *target,
 
             u64 addr1 = instruction.getNextAddress();
             u64 addr2 = instruction.operands[0].getImmediate().getValue();
-            auto cond_ctx = ExploreAlternativeBranch(instruction, ctx);
+            auto cond_ctx =
+                ExploreAlternativeBranch(instruction, ctx, local_step_count);
             if (cond_ctx) {
                 logger::Debug("Push alternative ctx");
                 ctx_queue.push_front({addr2, std::move(cond_ctx)});
             }
-            logger::Info("Symbolic branch: 0x%llx or 0x%llx. Will go to 0x%llx",
-                         addr1, addr2,
-                         (instruction.isConditionTaken() ? addr2 : addr1));
+            logger::Debug(
+                "Symbolic branch: 0x%llx or 0x%llx. Will go to 0x%llx", addr1,
+                addr2, (instruction.isConditionTaken() ? addr2 : addr1));
         } while (true);
         logger::Debug("Solution not found yet");
+        ctx_queue.pop_back();
 
         if (solution_found) {
             final_ctx = ctx;

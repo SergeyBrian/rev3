@@ -110,15 +110,18 @@ class Logger {
 public:
     template <typename T>
     Logger &operator<<(const T &value) {
-        if (config::Get().verbose_logs) {
-            buffer_ << value;
+        if (!config::Get().verbose_logs) {
+            return *this;
         }
+        std::lock_guard<std::mutex> lock(mutex_);
+        buffer_ << value;
         Flush();
         return *this;
     }
 
 private:
     std::ostringstream buffer_;
+    std::mutex mutex_;
 
     void Flush() {
         std::cout << buffer_.str();
