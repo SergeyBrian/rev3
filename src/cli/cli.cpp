@@ -38,7 +38,8 @@ auto ImportsFunc = [](const std::vector<ArgValue> &args) -> int {
 
 auto FuncsFunc = [](const std::vector<ArgValue> &args) -> int {
     (void)args;
-    core::output::PrintFunctions(target);
+    std::string tag = args[0].string;
+    core::output::PrintFunctions(target, core::TagFromString(tag));
     return 0;
 };
 
@@ -105,8 +106,8 @@ static std::map<std::string, CommandDef> commands = {
     {
         "funcs",
         {
-            "funcs - view functions table",
-            {},
+            "funcs <tag> - view functions table",
+            {ArgType::String},
             FuncsFunc,
         },
     },

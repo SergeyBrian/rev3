@@ -68,42 +68,31 @@ bool IsAddressReachable(u64 from, u64 to,
 
 [[nodiscard]] std::unique_ptr<triton::Context> MakeDefaultContext() {
     auto ctx = std::make_unique<triton::Context>();
+#ifdef X86_BUILD
     ctx->setArchitecture(triton::arch::ARCH_X86);
+#else
+    ctx->setArchitecture(triton::arch::ARCH_X86_64);
+#endif
+    for (const auto &section : g_target->sections) {
+        auto data = g_target->bin_info->DataVec(section.address, section.size);
+        if (data.empty()) {
+            logger::Error("Bad memory");
+            return nullptr;
+        }
 
-    std::vector<u8> data = {
-        0x6E, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x36, 0x47, 0x31, 0x45,
-        0x43, 0x50, 0x4B, 0x4E, 0x3E, 0x43, 0x4E, 0x31, 0x38, 0x47, 0x3B, 0x45,
-        0x44, 0x38, 0x52, 0x51, 0x44, 0x3A, 0x3D, 0x37, 0x3A, 0x40, 0x3B, 0x37,
-        0x4D, 0x54, 0x45, 0x44, 0x51, 0x41, 0x4B, 0x32, 0x53, 0x47, 0x4D, 0x35,
-        0x3A, 0x49, 0x48, 0x4E, 0x51, 0x3E, 0x41, 0x45, 0x4D, 0x32, 0x00};
-
-    ctx->setConcreteMemoryAreaValue(0x41EDD0, data.data(), data.size());
-
-    std::vector<u8> data2 = {
-        0x32, 0x32, 0x32, 0x33, 0x33, 0x33, 0x30, 0x31, 0x32, 0x33, 0x32,
-        0x31, 0x32, 0x30, 0x31, 0x30, 0x31, 0x30, 0x31, 0x31, 0x33, 0x32,
-        0x30, 0x33, 0x31, 0x33, 0x30, 0x33, 0x33, 0x30, 0x31, 0x31, 0x30,
-        0x30, 0x30, 0x33, 0x31, 0x33, 0x33, 0x30, 0x31, 0x31, 0x33, 0x33,
-        0x30, 0x30, 0x33, 0x32, 0x31, 0x32, 0x00, 0x00};
-
-    ctx->setConcreteMemoryAreaValue(0x41EE0C, data2.data(), data2.size());
-
-    std::vector<u8> data3 = {0x53, 0x8D, 0x51, 0x65, 0x72, 0x52, 0x98, 0x18,
-                             0xA4, 0x65, 0xA7, 0x6E, 0x61, 0x62, 0x9D, 0x64,
-                             0x37, 0x36, 0x72, 0x14, 0x08, 0x44, 0x73, 0x6D,
-                             0x37, 0x5D, 0x64, 0x2E, 0x31, 0x07, 0x63, 0x34,
-                             0x1A, 0x1B, 0x18, 0x17, 0x38, 0x00, 0x00, 0x00};
-
-    ctx->setConcreteMemoryAreaValue(0x41EE40, data3.data(), data3.size());
+        ctx->setConcreteMemoryAreaValue(
+            section.address + g_target->bin_info->ImageBase(), data.data(),
+            data.size());
+    }
 
     ctx->setConcreteRegisterValue(ctx->registers.x86_esp, 0x600000);
     ctx->setConcreteMemoryAreaValue(0x600004, {0x00, 0x00, 0x70, 0x00});
     std::vector<u8> default_str = {
         'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A',
         'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A',
-        'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 0,
+        'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'B', 0,
     };
-    assert(default_str.size() == 38);
+    assert(default_str.size() == 39);
     ctx->setConcreteMemoryAreaValue(0x700000, default_str.data(),
                                     default_str.size());
     // This is memory where user input is assumed to be stored
@@ -114,7 +103,7 @@ bool IsAddressReachable(u64 from, u64 to,
 
 [[nodiscard]] std::unique_ptr<triton::Context> SnapshotContext(
     triton::Context *src, u64 step_count) {
-    logger::Debug("snapwhosdfsdf %u", step_count);
+    logger::Debug("Create snapshot. %u steps to make", step_count);
     auto ctx = MakeDefaultContext();
     ctx->setConcreteMemoryAreaValue(
         0x700000, src->getSymbolicMemoryAreaValue(0x700000, 40));
@@ -133,8 +122,13 @@ bool IsAddressReachable(u64 from, u64 to,
         instruction.setOpcode(instr->bytes, instr->size);
         ctx->processing(instruction);
         PrintDebugInfo(instruction, ctx.get());
+#ifdef X86_BUILD
         ip = static_cast<u64>(
             ctx->getSymbolicRegisterValue(ctx->registers.x86_eip));
+#else
+        ip = static_cast<u64>(
+            ctx->getSymbolicRegisterValue(ctx->registers.x86_rip));
+#endif
     }
 
     return std::move(ctx);
@@ -493,7 +487,7 @@ std::string Solve(const Target *target,
         }
     }
     for (const auto addr : important) {
-        logger::Debug("Node 0x%llx is IMPORTANT", addr);
+        logger::Info("Node 0x%llx is IMPORTANT", addr);
     }
 
     auto base_ctx = MakeDefaultContext();
@@ -547,8 +541,13 @@ std::string Solve(const Target *target,
             instruction.setOpcode(instr->bytes, instr->size);
             ctx->processing(instruction);
             PrintDebugInfo(instruction, ctx);
+#ifdef X86_BUILD
             auto next_ip = static_cast<u64>(
                 ctx->getSymbolicRegisterValue(ctx->registers.x86_eip));
+#else
+            auto next_ip = static_cast<u64>(
+                ctx->getSymbolicRegisterValue(ctx->registers.x86_rip));
+#endif
             if (!target->disassembly.instr_map.contains(next_ip)) {
                 logger::Error(
                     "Tried to go to invalid address 0x%llx (from 0x%llx)",

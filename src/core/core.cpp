@@ -377,56 +377,6 @@ void Run() {
             Inspect(&target, config::Get().static_analysis.inspect_address);
         }
 
-        const Function *func{};
-        if (config::Get().static_analysis.sink_target.empty()) {
-            func = SelectTargetFunction(target, Tag::Sink);
-        } else {
-            for (const auto &[_, funcs] : target.imports) {
-                for (const auto &f : funcs) {
-                    if (f.display_name ==
-                        config::Get().static_analysis.sink_target) {
-                        func = &f;
-                        goto outer_break;
-                    }
-                }
-            }
-        }
-outer_break:
-
-        if (!func) {
-            logger::Error("Invalid target function selected: `%s`",
-                          config::Get().static_analysis.sink_target.c_str());
-            return;
-        } else {
-            logger::Okay("Active target function: `%s`",
-                         func->display_name.c_str());
-        }
-
-        std::map<u64, std::vector<u64>> paths;
-        auto xrefs = target.cfg.FindXrefs(func->display_name);
-        if (xrefs.size() == 0) {
-            logger::Error("No references found");
-        } else {
-            logger::Info("%d references found", xrefs.size());
-        }
-
-        for (const auto &xref : xrefs) {
-            std::cout << target.GetNodeString(xref);
-            std::cout << "-----------------\n";
-        }
-
-        xrefs = target.cfg.FindXrefs("ReadFile");
-        if (xrefs.size() == 0) {
-            logger::Error("No references found");
-        } else {
-            logger::Info("%d references found", xrefs.size());
-        }
-
-        for (const auto &xref : xrefs) {
-            std::cout << target.GetNodeString(xref);
-            std::cout << "-----------------\n";
-        }
-
         if (config::Get().dynamic_analysis.target) {
             Solve(&target, config::Get().dynamic_analysis.target);
         }

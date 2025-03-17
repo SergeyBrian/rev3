@@ -1045,6 +1045,18 @@
       "lib_name": "vcrt",
       "tags": ["source"],
       "category": "ui"
+    },
+    {
+      "name": "gets_s",
+      "lib_name": "api-ms-win-crt-stdio-l1-1-0.dll",
+      "tags": ["source"],
+      "category": "ui"
+    },
+    {
+      "name": "puts",
+      "lib_name": "api-ms-win-crt-stdio-l1-1-0.dll",
+      "tags": ["sink"],
+      "category": "ui"
     }
   ]
 }

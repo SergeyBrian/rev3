@@ -16,13 +16,39 @@ void FindCallArgs(const Target &target, Xref *call) {
     for (; it != target.disassembly.instr_map.end(); it = std::next(it)) {
         const auto &[address, instr] = *it;
         if (instr->address >= node->block.next_address) break;
-        if (instr->id != X86_INS_PUSH) continue;
-        logger::Debug("Found push at 0x%llx", instr->address);
+        if (instr->id != X86_INS_MOV && instr->id != X86_INS_LEA &&
+            instr->id != X86_INS_PUSH)
+            continue;
+
+        if (instr->id == X86_INS_MOV || instr->id == X86_INS_LEA) {
+            switch (static_cast<x86_reg>(instr->detail->x86.operands[0].reg)) {
+                case X86_REG_RCX:
+                case X86_REG_RDX:
+                case X86_REG_R8:
+                case X86_REG_R9:
+                case X86_REG_XMM0:
+                case X86_REG_XMM1:
+                case X86_REG_XMM2:
+                case X86_REG_XMM3:
+                    break;
+                default:
+                    continue;
+            }
+        }
 
         if (target.references.contains(instr->address)) {
             logger::Debug("Reference ok. +1 arg");
+#ifdef X86_BUILD
+
             call->args.insert(call->args.begin(), 1,
                               target.references.at(instr->address)[0]);
+#else
+            for (const auto &ref : target.references.at(instr->address)) {
+                if (ref.direct) {
+                    call->args.insert(call->args.begin(), 1, ref);
+                }
+            }
+#endif
         } else {
             logger::Debug("Reference not ok. +1 arg");
             call->args.insert(call->args.begin(), 1,
@@ -185,6 +211,9 @@ void FindReferences(Target &target) {
             } else if (ops[i].type == X86_OP_MEM) {
                 ref_addr =
                     static_analysis::disassembler::SolveMemAddress(instr);
+                if (ops[i].mem.base == X86_REG_RIP) {
+                    ref_addr += target.bin_info->ImageBase();
+                }
             } else if (ops[i].type == X86_OP_IMM) {
                 ref_addr = ops[i].imm;
             }

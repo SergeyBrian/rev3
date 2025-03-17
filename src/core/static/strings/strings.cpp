@@ -1,6 +1,7 @@
 #include "strings.hpp"
 
 #include "../../../utils/logger.hpp"
+#include "../../../utils/utils.hpp"
 
 namespace core::static_analysis {
 bool IsASCII(char c) { return ((c != 0 && (c & ~0x7F) == 0)); }
@@ -45,6 +46,8 @@ void FindStackStrings(Target &target) {
     u64 mov_counter = 0;
     u64 first_mov_addr = 0;
     u64 offset{};
+    u64 idx{};
+    u64 scale{};
     for (const auto &[addr, instr] : target.disassembly.instr_map) {
         if (instr->id == X86_INS_MOV) {
             auto ops = instr->detail->x86.operands;
@@ -55,6 +58,8 @@ void FindStackStrings(Target &target) {
                 if (!first_mov_addr) {
                     first_mov_addr = addr;
                     offset = ops[0].mem.disp;
+                    idx = ops[0].mem.index;
+                    scale = ops[0].mem.scale;
                 }
                 continue;
             }
@@ -103,5 +108,9 @@ void FindStackStrings(Target &target) {
 void FindStrings(Target &target) {
     FindStaticStrings(target);
     FindStackStrings(target);
+    for (const auto &str : target.strings) {
+        logger::Debug("String at 0x%llx: %s", str.address,
+                      utils::UnescapeString(str.content).c_str());
+    }
 }
 }  // namespace core::static_analysis

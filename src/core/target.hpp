@@ -30,6 +30,14 @@ const std::map<Tag, std::string> TagName{
     {Tag::Masking, "masking"},
 };
 
+static Tag TagFromString(std::string str) {
+    for (const auto &[tag, name] : TagName) {
+        if (name == str) return tag;
+    }
+
+    return Tag::Any;
+}
+
 struct Reference {
     enum class Type : u8 {
         Unknown,

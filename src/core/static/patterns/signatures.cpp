@@ -329,6 +329,39 @@ static const std::vector<std::pair<std::string, std::vector<Pattern>>>
                 },
             },
         },
+
+        {
+            "_check_cookie",
+            {
+                {
+                    .stmt =
+                        {
+                            .type = Pattern::Stmt::Type::Any,
+                        },
+                    .count = -1,
+                },
+                {
+                    .stmt =
+                        {
+                            .type = Pattern::Stmt::Type::Insn,
+                            .insn =
+                                {
+                                    .id = X86_INS_CMP,
+                                    .left_op =
+                                        {
+                                            .type = X86_OP_REG,
+                                            .reg = X86_REG_ECX,
+                                        },
+                                    .right_op =
+                                        {
+                                            .type = X86_OP_IMM,
+                                            .imm = WindowsDefaultSecurityCookie,
+                                        },
+                                },
+                        },
+                },
+            },
+        },
     };
 
 static const std::vector<Pattern> main_sig{

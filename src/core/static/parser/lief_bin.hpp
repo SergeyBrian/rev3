@@ -17,6 +17,7 @@ public:
     std::string SectionFromRva(u64 addr) const override;
     u64 ImageBase() const override;
     const byte *Data(u64 addr, usize size) const override;
+    std::vector<u8> DataVec(u64 addr, usize size) const override;
     u64 EntryPoint() const override;
 
 private:

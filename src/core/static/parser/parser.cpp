@@ -46,8 +46,9 @@ Err ParseBinary(Target &target) {
     logger::Okay("Parsing done");
 
     for (const auto &section : result->sections()) {
-        logger::Debug("Found section %s at 0x%llx", section.name().c_str(),
-                      section.virtual_address());
+        logger::Debug("Found section %s at 0x%llx ~~> 0x%llx",
+                      section.name().c_str(), section.virtual_address(),
+                      section.virtual_address() + section.sizeof_raw_data());
         target.sections.push_back(Section{
             .name = section.name(),
             .address = section.virtual_address(),
