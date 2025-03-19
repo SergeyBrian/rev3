@@ -1,4 +1,6 @@
 #include "solver.hpp"
+#include "triton/archEnums.hpp"
+#include "triton/cpuSize.hpp"
 #include "triton/instruction.hpp"
 
 #include <triton/context.hpp>
@@ -17,9 +19,39 @@ namespace core::dynamic::solver {
 
 static const std::map<std::string, bool> ImportantFunctions{
     {"_security_init_cookie", false},
+    {"printf", false},
+    {"scanf", false},
+    {"puts", false},
+    {"gets_s", false},
 };
-static const u64 first_ip = 0x1450;
+
+static u64 first_ip{};
 static const Target *g_target = nullptr;
+static std::map<u64, std::pair<triton::arch::register_e, u64>> reg_override{};
+
+const static u8 memchr_impl[] = {
+    0x4C, 0x89, 0x44, 0x24, 0x18, 0x89, 0x54, 0x24, 0x10, 0x48, 0x89,
+    0x4C, 0x24, 0x08, 0x48, 0x83, 0xEC, 0x18, 0x48, 0x8B, 0x44, 0x24,
+    0x20, 0x48, 0x89, 0x04, 0x24, 0x48, 0x8B, 0x44, 0x24, 0x30, 0x48,
+    0x89, 0x44, 0x24, 0x08, 0x48, 0x8B, 0x44, 0x24, 0x30, 0x48, 0xFF,
+    0xC8, 0x48, 0x89, 0x44, 0x24, 0x30, 0x48, 0x83, 0x7C, 0x24, 0x08,
+    0x00, 0x74, 0x26, 0x48, 0x8B, 0x04, 0x24, 0x0F, 0xB6, 0x00, 0x0F,
+    0xB6, 0x4C, 0x24, 0x28, 0x39, 0xC8, 0x75, 0x06, 0x48, 0x8B, 0x04,
+    0x24, 0xEB, 0x12, 0x48, 0x8B, 0x04, 0x24, 0x48, 0xFF, 0xC0, 0x48,
+    0x89, 0x04, 0x24, 0xE9, 0x00, 0x00, 0x00, 0x00, 0x31, 0xC0, 0x90,
+};
+
+void PrintSymMem(triton::Context *ctx) {
+    return;
+    logger::Debug("sym mem");
+    for (const auto &[addr, mem] : ctx->getSymbolicMemory()) {
+        logger::Debug("Sym mem 0x%llx", addr);
+        auto data = ctx->getSymbolicMemoryAreaValue(addr, 1);
+        logger::log << utils::UnescapeString({data.begin(), data.end()})
+                    << "\n";
+    }
+    logger::Debug("sym mem over");
+}
 
 void CleanUpTrace(const Target *target,
                   std::vector<static_analysis::CFGNode *> &path) {
@@ -42,7 +74,6 @@ void PrintDebugInfo(triton::arch::Instruction &instr, triton::Context *ctx) {
     if (instr.isSymbolized()) logger::log << "syminstr: ";
     logger::log << COLOR_BLUE << instr << COLOR_RESET << "\n";
     auto regs = instr.getReadRegisters();
-    if (!instr.isSymbolized()) return;
 
     for (const auto &[reg, expr] : regs) {
         if (!ctx->isRegisterSymbolized(reg)) continue;
@@ -51,14 +82,200 @@ void PrintDebugInfo(triton::arch::Instruction &instr, triton::Context *ctx) {
     }
 
     for (const auto &[mem, expr] : instr.getLoadAccess()) {
-        if (!ctx->isMemorySymbolized(mem)) continue;
-
-        logger::Debug("0x%llx", mem.getAddress());
+        if (!ctx->isMemorySymbolized(mem)) {
+            logger::Debug("Read concret memory: 0x%llx", mem.getAddress());
+        } else {
+            logger::Debug("0x%llx", mem.getAddress());
+        }
     }
 
     for (const auto &expr : instr.symbolicExpressions) {
         logger::log << expr << "\n";
     }
+}
+
+using SourceHandler = void (*)(triton::Context *ctx,
+                               triton::arch::Instruction *instruction,
+                               Function *func);
+
+u64 source_addr{};
+u64 source_mem_size{};
+
+void fgets_Handler(triton::Context *ctx, triton::arch::Instruction *instruction,
+                   Function *func) {
+    auto buf = u64(ctx->getConcreteRegisterValue(ctx->registers.x86_rcx));
+    auto size = usize(ctx->getConcreteRegisterValue(ctx->registers.x86_edx));
+    logger::Debug("fgets -> 0x%llx, size %u", buf, size);
+    ctx->symbolizeMemory(buf, size);
+    ctx->setConcreteRegisterValue(ctx->registers.x86_rax, buf);
+
+    source_addr = buf;
+    source_mem_size = size;
+};
+
+void strcpy_s_Handler(triton::Context *ctx,
+                      triton::arch::Instruction *instruction, Function *func) {
+    auto dest = ctx->registers.x86_rcx;
+    auto src = ctx->registers.x86_r8;
+    auto count_reg = ctx->registers.x86_edx;
+
+    auto dest_ptr = static_cast<u64>(ctx->getConcreteRegisterValue(dest));
+    auto src_ptr = static_cast<u64>(ctx->getConcreteRegisterValue(src));
+    auto count = static_cast<u64>(ctx->getConcreteRegisterValue(count_reg));
+
+    while (count--) {
+        uint8_t byte = ctx->getConcreteMemoryAreaValue(src_ptr, 1).front();
+        logger::Debug("cpy %c", byte);
+
+        if (byte == '\0') {
+            ctx->setConcreteMemoryAreaValue(dest_ptr, &byte, 1);
+            ctx->symbolizeMemory(dest_ptr, 1);
+            break;
+        }
+
+        ctx->setConcreteMemoryAreaValue(dest_ptr, &byte, 1);
+        ctx->symbolizeMemory(dest_ptr, 1);
+
+        dest_ptr++;
+        src_ptr++;
+    }
+}
+
+void memchr_Handler(triton::Context *ctx,
+                    triton::arch::Instruction *instruction, Function *func) {
+    auto buf = ctx->getConcreteRegisterValue(ctx->registers.x86_rcx);
+    auto key = ctx->getConcreteRegisterValue(ctx->registers.x86_edx);
+    auto maxcount = ctx->getConcreteRegisterValue(ctx->registers.x86_r8);
+
+    for (u64 i = 0; i < maxcount; i++) {
+        auto c = ctx->getConcreteMemoryValue(
+            {static_cast<u64>(buf) + i, triton::size::byte});
+        if (c == key) {
+            ctx->setConcreteRegisterValue(ctx->registers.x86_rax,
+                                          static_cast<u64>(buf) + i);
+            return;
+        }
+    }
+}
+
+void gets_s_Handler(triton::Context *ctx,
+                    triton::arch::Instruction *instruction, Function *func) {
+    auto buf = u64(ctx->getConcreteRegisterValue(ctx->registers.x86_rcx));
+    auto size = usize(ctx->getConcreteRegisterValue(ctx->registers.x86_edx));
+    logger::Debug("gets_s -> 0x%llx, size %u", buf, size);
+    ctx->symbolizeMemory(buf, size);
+
+    source_addr = buf;
+    source_mem_size = size;
+};
+
+void ReadFile_Handler(triton::Context *ctx,
+                      triton::arch::Instruction *instruction, Function *func) {
+    auto buf = u64(ctx->getConcreteRegisterValue(ctx->registers.x86_rdx));
+    auto size = usize(ctx->getConcreteRegisterValue(ctx->registers.x86_r8d));
+    logger::Debug("ReadFile -> 0x%llx, size %u", buf, size);
+    ctx->symbolizeMemory(buf, size);
+
+    source_addr = buf;
+    source_mem_size = size;
+};
+
+void RegGetValueW_Handler(triton::Context *ctx,
+                          triton::arch::Instruction *instruction,
+                          Function *func) {
+    ctx->symbolizeMemory({static_cast<u64>(ctx->getConcreteRegisterValue(
+                              ctx->registers.x86_rsp)) +
+                              0x60,
+                          triton::size::byte});
+    logger::Debug("RegGetValueW");
+    source_addr = static_cast<u64>(
+                      ctx->getConcreteRegisterValue(ctx->registers.x86_rsp)) +
+                  0x60;
+    source_mem_size = 1;
+}
+
+void RegOpenKeyExW_Handler(triton::Context *ctx,
+                           triton::arch::Instruction *instruction,
+                           Function *func) {
+    ctx->symbolizeRegister(ctx->registers.x86_rax);
+    logger::Debug("RegOpenKeyExW");
+}
+
+void GetModuleFileNameW_Handler(triton::Context *ctx,
+                                triton::arch::Instruction *instruction,
+                                Function *func) {
+    auto buf = u64(ctx->getConcreteRegisterValue(ctx->registers.x86_rdx));
+    auto size = usize(ctx->getConcreteRegisterValue(ctx->registers.x86_r8d));
+    logger::Debug("GetModuleFileNameW -> 0x%llx, size %u", buf, size);
+    ctx->symbolizeMemory(buf, size);
+
+    source_addr = buf;
+    source_mem_size = size;
+};
+
+void PrintRes(triton::Context *ctx) {
+    auto res_bytes =
+        ctx->getSymbolicMemoryAreaValue(source_addr, source_mem_size);
+    std::string result{res_bytes.begin(), res_bytes.end()};
+    logger::log << COLOR_GREEN << result << "\n" << COLOR_RESET;
+}
+
+static const std::map<std::string, SourceHandler> handlers{
+    {"fgets", fgets_Handler},
+    {"gets_s", gets_s_Handler},
+    {"ReadFile", ReadFile_Handler},
+    {"RegGetValueW", RegGetValueW_Handler},
+    {"RegOpenKeyExW", RegOpenKeyExW_Handler},
+    {"GetModuleFileNameW", GetModuleFileNameW_Handler},
+    {"strcpy_s", strcpy_s_Handler},
+    {"memchr", memchr_Handler},
+};
+
+bool DoInstrStuff(triton::Context *ctx, triton::arch::Instruction *instruction,
+                  cs_insn *instr, u64 *ip) {
+    bool step_over = false;
+    if (instr->id == X86_INS_CALL && g_target->references.contains(*ip)) {
+        logger::Info("Found call");
+        step_over = true;
+        if (!g_target->disassembly.instr_map.contains(
+                instruction->getNextAddress())) {
+            step_over = true;
+        }
+        for (const auto &ref : g_target->references.at(*ip)) {
+            if (ref.type == Reference::Type::Function) {
+                auto func = g_target->functions.at(ref.address);
+                logger::Info("Call to %s", func->display_name.c_str());
+                if (ImportantFunctions.contains(func->display_name) &&
+                    !ImportantFunctions.at(func->display_name)) {
+                    step_over = true;
+                }
+                if (handlers.contains(func->display_name)) {
+                    handlers.at(func->display_name)(ctx, instruction, func);
+                    PrintRes(ctx);
+                }
+            }
+        }
+    }
+    if (step_over) {
+        logger::Info("Stepping over 0x%llx", ip);
+        auto it = g_target->disassembly.instr_map.lower_bound(*ip);
+#ifdef X86_BUILD
+        ctx->symbolizeRegister(ctx->registers.x86_eax);
+        ctx->setConcreteRegisterValue(
+            ctx->registers.x86_esp,
+            ctx->getConcreteRegisterValue(ctx->registers.x86_esp) +
+                triton::size::dword);
+#else
+        ctx->symbolizeRegister(ctx->registers.x86_rax);
+        ctx->setConcreteRegisterValue(
+            ctx->registers.x86_rsp,
+            ctx->getConcreteRegisterValue(ctx->registers.x86_rsp) +
+                triton::size::qword);
+#endif
+        it++;
+        *ip = it->first;
+    }
+    return step_over;
 }
 
 bool IsAddressReachable(u64 from, u64 to,
@@ -80,23 +297,28 @@ bool IsAddressReachable(u64 from, u64 to,
             return nullptr;
         }
 
+#ifdef X86_BUILD
         ctx->setConcreteMemoryAreaValue(
             section.address + g_target->bin_info->ImageBase(), data.data(),
             data.size());
+#else
+        ctx->setConcreteMemoryAreaValue(section.address, data.data(),
+                                        data.size());
+#endif
     }
 
     ctx->setConcreteRegisterValue(ctx->registers.x86_esp, 0x600000);
-    ctx->setConcreteMemoryAreaValue(0x600004, {0x00, 0x00, 0x70, 0x00});
+    // ctx->setConcreteMemoryAreaValue(0x600004, {0x00, 0x00, 0x70, 0x00});
     std::vector<u8> default_str = {
         'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A',
         'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A',
         'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'A', 'B', 0,
     };
     assert(default_str.size() == 39);
-    ctx->setConcreteMemoryAreaValue(0x700000, default_str.data(),
-                                    default_str.size());
-    // This is memory where user input is assumed to be stored
-    ctx->symbolizeMemory(0x700000, 40);
+    // ctx->setConcreteMemoryAreaValue(0x700000, default_str.data(),
+    //                                 default_str.size());
+    //  This is memory where user input is assumed to be stored
+    // ctx->symbolizeMemory(0x700000, 40);
 
     return ctx;
 }
@@ -105,23 +327,42 @@ bool IsAddressReachable(u64 from, u64 to,
     triton::Context *src, u64 step_count) {
     logger::Debug("Create snapshot. %u steps to make", step_count);
     auto ctx = MakeDefaultContext();
-    ctx->setConcreteMemoryAreaValue(
-        0x700000, src->getSymbolicMemoryAreaValue(0x700000, 40));
-    ctx->symbolizeMemory(0x700000, 40);
-    auto data = src->getSymbolicMemoryAreaValue(0x700000, 40);
-    logger::log << utils::UnescapeString({data.begin(), data.end()}) << "\n";
+    /*ctx->setConcreteMemoryAreaValue(*/
+    /*    0x700000, src->getSymbolicMemoryAreaValue(0x700000, 40));*/
+    /*ctx->symbolizeMemory(0x700000, 40);*/
+    /*auto data = src->getSymbolicMemoryAreaValue(0x700000, 40);*/
+    /*logger::log << utils::UnescapeString({data.begin(), data.end()}) <<
+     * "\n";*/
+    auto old_data =
+        src->getConcreteMemoryAreaValue(source_addr, source_mem_size);
+    ctx->setConcreteMemoryAreaValue(source_addr, old_data.data(),
+                                    old_data.size());
+    ctx->symbolizeMemory(source_addr, source_mem_size);
 
     u64 ip = first_ip;
 
     while (step_count--) {
         if (!g_target->disassembly.instr_map.contains(ip)) return nullptr;
+        PrintRes(ctx.get());
         triton::arch::Instruction instruction{};
         auto instr = g_target->disassembly.instr_map.at(ip);
+        if (reg_override.contains(ip)) {
+            auto &[reg, val] = reg_override.at(ip);
+            ctx->setConcreteRegisterValue(ctx->getRegister(reg), val);
+            ctx->symbolizeRegister(ctx->getRegister(reg));
+        }
+
+        if (instr->id == X86_INS_DIV &&
+            instr->detail->x86.operands[0].reg == X86_REG_CH) {
+            ip += instr->size;
+            continue;
+        }
         instruction.setAddress(instr->address);
         instruction.setSize(instr->size);
         instruction.setOpcode(instr->bytes, instr->size);
         ctx->processing(instruction);
         PrintDebugInfo(instruction, ctx.get());
+        if (DoInstrStuff(ctx.get(), &instruction, instr, &ip)) continue;
 #ifdef X86_BUILD
         ip = static_cast<u64>(
             ctx->getSymbolicRegisterValue(ctx->registers.x86_eip));
@@ -130,6 +371,8 @@ bool IsAddressReachable(u64 from, u64 to,
             ctx->getSymbolicRegisterValue(ctx->registers.x86_rip));
 #endif
     }
+
+    logger::Debug("Snapshot created.");
 
     return std::move(ctx);
 }
@@ -329,8 +572,11 @@ void NegateInstructionFlags(triton::Context *ctx,
 bool SolveFormula(triton::Context *ctx, u64 ip,
                   const triton::arch::Instruction *instr) {
     auto pc = ctx->getPathConstraints().back();
+    logger::Debug("0x%llx == 0x%llx", std::get<1>(pc.getBranchConstraints()[0]),
+                  ip);
     assert(std::get<1>(pc.getBranchConstraints()[0]) == ip &&
-           "Programming error. Path constraint does not match the instruction");
+           "Programming error. Path constraint does not match the "
+           "instruction");
 
     auto ast = ctx->getAstContext();
     auto prev_constraints = ast->equal(ast->bvtrue(), ast->bvtrue());
@@ -362,18 +608,27 @@ bool SolveFormula(triton::Context *ctx, u64 ip,
                         auto addr = var->getOrigin();
                         auto size = var->getSize() / 8;
                         logger::log << "Update memory: 0x" << std::hex << addr
-                                    << "\n";
+                                    << " = " << static_cast<u64>(val) << "\n";
                         ctx->setConcreteMemoryAreaValue(addr, &val, size);
+                        ctx->symbolizeMemory(addr, size);
                     } break;
                     case triton::engines::symbolic::REGISTER_VARIABLE: {
                         logger::Error(
-                            "Register concretized during model calculation. I "
+                            "Register concretized during model "
+                            "calculation. I "
                             "think this should never happen");
                         auto reg = ctx->getRegister(
                             static_cast<triton::arch::register_e>(
                                 var->getOrigin()));
-                        logger::log << "Update register: " << reg << "\n";
+                        logger::log << "Update register: " << reg << " = "
+                                    << static_cast<u64>(val) << "\n";
                         ctx->setConcreteRegisterValue(reg, val);
+                        ctx->symbolizeRegister(reg);
+                        reg_override.insert(
+                            {instr->getAddress(),
+                             {static_cast<triton::arch::register_e>(
+                                  var->getOrigin()),
+                              static_cast<u64>(val)}});
                     } break;
                     default:
                         UNREACHABLE
@@ -415,6 +670,7 @@ std::unique_ptr<triton::Context> ExploreAlternativeBranch(
     logger::Debug("Solving alternative model");
     if (!SolveFormula(new_ctx.get(), instr.getAddress(), &instr))
         return nullptr;
+    PrintRes(new_ctx.get());
 
     NegateInstructionFlags(new_ctx.get(), &instr);
 
@@ -442,21 +698,8 @@ std::unique_ptr<triton::Context> ExploreAlternativeBranch(
         new_ctx->pushPathConstraint(new_constraint);
     }
 
-    auto data = new_ctx->getSymbolicMemoryAreaValue(0x700000, 40);
-    logger::log << COLOR_GREEN
-                << utils::UnescapeString({data.begin(), data.end()})
-                << COLOR_RESET << "\n";
-    data = ctx->getSymbolicMemoryAreaValue(0x700000, 40);
-    logger::log << COLOR_YELLOW
-                << utils::UnescapeString({data.begin(), data.end()})
-                << COLOR_RESET << "\n";
-    if (utils::contains(used_inputs,
-                        new_ctx->getSymbolicMemoryAreaValue(0x700000, 40))) {
-        logger::Debug("Equivalent input was already explored");
-    } else {
-        logger::Debug("Patch applied 0x%llx", patched_addr);
-    }
-    used_inputs.push_back(new_ctx->getSymbolicMemoryAreaValue(0x700000, 40));
+    PrintSymMem(ctx);
+    PrintSymMem(new_ctx.get());
 
     return new_ctx;
 }
@@ -469,7 +712,8 @@ struct ContextHolder {
 
 std::string Solve(const Target *target,
                   const std::vector<static_analysis::CFGNode *> &path) {
-    u64 dest = path.at(path.size() - 1)->block.address;
+    u64 dest = path.back()->block.address;
+    first_ip = target->GetFunctionFirstAddress(path.front()->block.address);
     std::vector<u64> important;
     g_target = target;
     for (const auto node : path) {
@@ -499,6 +743,7 @@ std::string Solve(const Target *target,
     });
     triton::Context *final_ctx = nullptr;
 
+    logger::Info("First address: 0x%llx", first_ip);
     logger::Info("Destination address: 0x%llx", dest);
 
     u64 step_count = 0;
@@ -514,33 +759,54 @@ std::string Solve(const Target *target,
         auto ip = it.ip;
         auto ctx_ptr = std::move(it.ctx);
         ctx_queue.pop_back();
-        // ip = first_ip;
         auto ctx = ctx_ptr.get();
         u64 prev_ip = ip;
         bool solution_found = false;
         u64 ctx_id = ctx_queue.size();
+        std::set<u64> touched{};
 
         logger::Okay("Enter context #%u at 0x%llx", ctx_id, ip);
-        auto data = ctx->getSymbolicMemoryAreaValue(0x700000, 40);
-        logger::log << "Trying " << COLOR_GREEN
-                    << utils::UnescapeString({data.begin(), data.end()})
-                    << COLOR_RESET << "\n";
+        PrintSymMem(ctx);
 
         if (!target->disassembly.instr_map.contains(ip)) {
             logger::Error("There is no instruction at 0x%llx", ip);
             continue;
         }
         do {
+            touched.insert(ip);
             triton::arch::Instruction instruction{};
             step_count++;
             local_step_count++;
+            if (reg_override.contains(ip)) {
+                auto &[reg, val] = reg_override.at(ip);
+                ctx->setConcreteRegisterValue(ctx->getRegister(reg), val);
+            }
             logger::Debug("Step %u Ctx %u", step_count, ctx_id);
             auto instr = target->disassembly.instr_map.at(ip);
+            if (instr->id == X86_INS_DIV &&
+                instr->detail->x86.operands[0].reg == X86_REG_CH) {
+                ip += instr->size;
+                continue;
+            }
             instruction.setAddress(instr->address);
             instruction.setSize(instr->size);
             instruction.setOpcode(instr->bytes, instr->size);
             ctx->processing(instruction);
+
+            if (ip == dest) {
+                logger::Okay("Reached target! Enter");
+                solution_found = true;
+                PrintSymMem(ctx);
+                auto res_bytes = ctx->getSymbolicMemoryAreaValue(
+                    source_addr, source_mem_size);
+                std::string result{res_bytes.begin(), res_bytes.end()};
+                return utils::UnescapeString(result);
+                break;
+            }
+
             PrintDebugInfo(instruction, ctx);
+            if (DoInstrStuff(ctx, &instruction, instr, &ip)) continue;
+            PrintRes(ctx);
 #ifdef X86_BUILD
             auto next_ip = static_cast<u64>(
                 ctx->getSymbolicRegisterValue(ctx->registers.x86_eip));
@@ -552,17 +818,8 @@ std::string Solve(const Target *target,
                 logger::Error(
                     "Tried to go to invalid address 0x%llx (from 0x%llx)",
                     next_ip, ip);
-                break;
-            }
-
-            if (ip == 0x15D9) {
-                if (ctx->getSymbolicRegisterValue(ctx->registers.x86_eax)) {
-                    logger::Okay("Reached target! Enter");
-                    solution_found = true;
-                    return utils::UnescapeString(
-                        std::string{data.begin(), data.end()});
-                } else {
-                    logger::Debug("Reached target with wrong result");
+                for (const auto &addr : touched) {
+                    // reg_override.erase(addr);
                 }
                 break;
             }
@@ -586,7 +843,8 @@ std::string Solve(const Target *target,
 
             if (cond_ctx) {
                 logger::Debug("Push alternative ctx and switch to it");
-                // Push current context because we want to return to it later
+                // Push current context because we want to return to it
+                // later
                 ctx_queue.push_back({
                     .ctx = std::move(ctx_ptr),
                     .ip = (instruction.isConditionTaken() ? addr2 : addr1),

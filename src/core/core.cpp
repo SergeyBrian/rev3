@@ -9,6 +9,7 @@
 #include "../common/pre_checks.hpp"
 
 #include "static/calls/calls.hpp"
+#include "static/disas/disassembler.hpp"
 #include "target.hpp"
 #include "output.hpp"
 #include "static/parser/parser.hpp"
@@ -115,16 +116,19 @@ Err DoIATXrefsSearch(Target &target) {
 
         if (strstr(instr->mnemonic, "call"))
             logger::Debug("+ call %s %s", instr->mnemonic, instr->op_str);
-        if (((!strcmp(prev_instr->mnemonic, "lea") ||
-              !strcmp(prev_instr->mnemonic, "mov")) &&
-             (instr->id == X86_INS_CALL || instr->id == X86_INS_LCALL) &&
-             strstr(instr->op_str, "qword") &&
-             (strstr(instr->op_str, "[rip") ||
-              strstr(instr->op_str, "[eip"))) ||
-            ((instr->id == X86_INS_CALL || instr->id == X86_INS_LCALL) &&
-             instr->detail->x86.operands[0].type == X86_OP_IMM) ||
-            ((instr->id == X86_INS_CALL || instr->id == X86_INS_LCALL) &&
-             instr->detail->x86.operands[0].type == X86_OP_MEM)) {
+        if ((((!strcmp(prev_instr->mnemonic, "lea") ||
+               !strcmp(prev_instr->mnemonic, "mov")) &&
+              (instr->id == X86_INS_CALL || instr->id == X86_INS_LCALL) &&
+              strstr(instr->op_str, "qword") &&
+              (strstr(instr->op_str, "[rip") ||
+               strstr(instr->op_str, "[eip"))) ||
+             ((instr->id == X86_INS_CALL || instr->id == X86_INS_LCALL) &&
+              instr->detail->x86.operands[0].type == X86_OP_IMM) ||
+             ((instr->id == X86_INS_CALL || instr->id == X86_INS_LCALL) &&
+              instr->detail->x86.operands[0].type == X86_OP_MEM)) ||
+            instr->id == X86_INS_JMP &&
+                instr->detail->x86.operands[0].type == X86_OP_MEM &&
+                instr->detail->x86.operands[0].mem.base == X86_REG_RIP) {
             calls.push_back(instr->address);
 
             logger::Okay("[%d] Found call at 0x%llx", i, instr->address);
@@ -373,6 +377,14 @@ void Run() {
         static_analysis::FindCallsArgs(target);
         dynamic::DecryptStrings(&target);
 
+        for (const auto &[_, func] : target.functions) {
+            if (func->display_name != "memchr") continue;
+            for (const auto &[addr, ref] : func->xrefs) {
+                if (!target.functions.contains(addr)) continue;
+                target.functions.at(addr)->display_name = "memchr";
+            }
+        }
+
         if (config::Get().static_analysis.inspect_address) {
             Inspect(&target, config::Get().static_analysis.inspect_address);
         }
@@ -458,28 +470,34 @@ void Info(const Target *target) {
 }
 
 void Solve(const Target *target, u64 address) {
-    std::vector<static_analysis::CFGNode *> path =
-        target->cfg.FindPath(target->bin_info->EntryPoint(), address);
-    logger::Info("Full trace:");
-    dynamic::solver::CleanUpTrace(target, path);
-    for (auto it = path.begin(); it != path.end(); it++) {
-        const auto node = *it;
-        std::cout << target->GetNodeString(node->block.address);
-        std::cout << "-----------------\n";
-        for (const auto &edge : node->out_edges) {
-            if (edge.type != static_analysis::CFGEdgeType::Jcc) break;
-            if (std::next(it) != path.end() && edge.target != *std::next(it)) {
-                continue;
+    for (const auto &[_, func] : target->functions) {
+        if (!(func->tags & static_cast<u16>(Tag::Source))) continue;
+        for (const auto xref : func->xrefs) {
+            std::vector<static_analysis::CFGNode *> path =
+                target->cfg.FindPath(xref.first, address);
+            if (path.empty()) continue;
+            logger::Info("Full trace:");
+            for (auto it = path.begin(); it != path.end(); it++) {
+                const auto node = *it;
+                std::cout << target->GetNodeString(node->block.address);
+                std::cout << "-----------------\n";
+                for (const auto &edge : node->out_edges) {
+                    if (edge.type != static_analysis::CFGEdgeType::Jcc) break;
+                    if (std::next(it) != path.end() &&
+                        edge.target != *std::next(it)) {
+                        continue;
+                    }
+                    edge.Log();
+                    std::cout << edge.condition.ToString();
+                }
+                std::cout << "-----------------\n";
             }
-            edge.Log();
-            std::cout << edge.condition.ToString();
+            std::string solution = dynamic::solver::Solve(target, path);
+            if (!solution.empty()) {
+                std::cout << COLOR_GREEN << "FOUND SOLUTION\n"
+                          << solution << COLOR_RESET << "\n";
+            }
         }
-        std::cout << "-----------------\n";
-    }
-    std::string solution = dynamic::solver::Solve(target, path);
-    if (!solution.empty()) {
-        std::cout << COLOR_GREEN << "FOUND SOLUTION\n"
-                  << solution << COLOR_RESET << "\n";
     }
 }
 

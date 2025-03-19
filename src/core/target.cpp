@@ -163,4 +163,13 @@ std::string Target::GetString(u64 addr, usize size) const {
     strings_cache[addr][size] = ss.str();
     return ss.str();
 }
+
+u64 Target::GetFunctionFirstAddress(u64 addr) const {
+    auto it = disassembly.instr_map.lower_bound(addr);
+    while (it != disassembly.instr_map.end()) {
+        if (functions.contains(it->first)) return it->first;
+        it--;
+    }
+    return 0;
+}
 }  // namespace core

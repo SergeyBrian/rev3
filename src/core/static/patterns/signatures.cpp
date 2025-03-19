@@ -5,7 +5,11 @@
 #include "../../../utils/logger.hpp"
 
 namespace core::static_analysis {
+#ifdef X86_BUILD
 static const i64 WindowsDefaultSecurityCookie = 0x0BB40E64E;
+#else
+static const i64 WindowsDefaultSecurityCookie = 0x2B992DDFA232;
+#endif
 
 static const std::vector<std::pair<std::string, std::vector<Pattern>>>
     signatures{
@@ -354,7 +358,7 @@ static const std::vector<std::pair<std::string, std::vector<Pattern>>>
                                         },
                                     .right_op =
                                         {
-                                            .type = X86_OP_IMM,
+                                            .type = X86_OP_MEM,
                                             .imm = WindowsDefaultSecurityCookie,
                                         },
                                 },

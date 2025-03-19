@@ -149,10 +149,8 @@ bool MatchPattern(const Target *target, u64 address,
     for (; it != target->disassembly.instr_map.end(); it = std::next(it)) {
         const auto &[addr, instr] = *it;
         if (!InstrMatchesPattern(target, instr, pattern, &pattern_step)) {
-            logger::Debug("Pattern statement %d not satisfied", pattern_step);
             return false;
         }
-        logger::Debug("Pattern statement %d satisfied", pattern_step - 1);
         if (pattern_step >= pattern.size()) break;
         if (instr->address - address > 256) break;
     }

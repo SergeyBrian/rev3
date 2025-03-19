@@ -113,6 +113,7 @@ struct Target {
 
     explicit Target(const std::string &filename);
     void MapFunctions();
+    u64 GetFunctionFirstAddress(u64 addr) const;
 };
 }  // namespace core
 

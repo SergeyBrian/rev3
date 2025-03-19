@@ -231,36 +231,6 @@
       "category": "system"
     },
     {
-      "name": "findfirstfilea",
-      "lib_name": "kernel32.dll",
-      "tags": ["source"],
-      "category": "filesystem"
-    },
-    {
-      "name": "findfirstfilew",
-      "lib_name": "kernel32.dll",
-      "tags": ["source"],
-      "category": "filesystem"
-    },
-    {
-      "name": "findfirstfileexw",
-      "lib_name": "kernel32.dll",
-      "tags": ["source"],
-      "category": "filesystem"
-    },
-    {
-      "name": "findfirstfileexa",
-      "lib_name": "kernel32.dll",
-      "tags": ["source"],
-      "category": "filesystem"
-    },
-    {
-      "name": "findnextfilea",
-      "lib_name": "kernel32.dll",
-      "tags": ["source"],
-      "category": "filesystem"
-    },
-    {
       "name": "findnextfilew",
       "lib_name": "kernel32.dll",
       "tags": ["source"],
@@ -1053,10 +1023,46 @@
       "category": "ui"
     },
     {
+      "name": "fgets",
+      "lib_name": "api-ms-win-crt-stdio-l1-1-0.dll",
+      "tags": ["source"],
+      "category": "ui"
+    },
+    {
       "name": "puts",
       "lib_name": "api-ms-win-crt-stdio-l1-1-0.dll",
       "tags": ["sink"],
       "category": "ui"
+    },
+    {
+      "name": "RegGetValueW",
+      "lib_name": "ADVAPI32.dll",
+      "tags": ["source"],
+      "category": "system"
+    },
+    {
+      "name": "RegSetValueExW",
+      "lib_name": "ADVAPI32.dll",
+      "tags": ["sink"],
+      "category": "system"
+    },
+    {
+      "name": "RegOpenKeyExW",
+      "lib_name": "ADVAPI32.dll",
+      "tags": ["source"],
+      "category": "system"
+    },
+    {
+      "name": "GetModuleFileNameW",
+      "lib_name": "KERNEL32.dll",
+      "tags": ["source"],
+      "category": "system"
+    },
+    {
+      "name": "FindFirstFileW",
+      "lib_name": "KERNEL32.dll",
+      "tags": ["sink"],
+      "category": "filesystem"
     }
   ]
 }
